@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew build --quiet)",
+      "Bash(./gradlew spotlessApply --quiet)"
+    ]
+  }
+}
