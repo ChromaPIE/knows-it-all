@@ -29,4 +29,19 @@ public class ChatMessage {
     public String getContent() {
         return content;
     }
+
+    public boolean isToolResult() {
+        if (content == null) return false;
+        return content.startsWith("[Tool Output") ||
+               ("system".equals(role) && content.startsWith("Tool results:"));
+    }
+
+    public boolean isDisplayable() {
+        if (isToolResult()) return false;
+        return "user".equals(role) || "assistant".equals(role) || "tool_hint".equals(role);
+    }
+
+    public boolean isToolHint() {
+        return "tool_hint".equals(role);
+    }
 }

@@ -9,6 +9,7 @@ import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.PlayerEvent;
 import cr.chromapie.knowsitall.CommonProxy;
 import cr.chromapie.knowsitall.KnowsItAll;
+import cr.chromapie.knowsitall.api.ConversationManager;
 import cr.chromapie.knowsitall.knowledge.KnowledgeBase;
 
 public class WorldEventHandler {
@@ -32,6 +33,7 @@ public class WorldEventHandler {
         }
 
         KnowledgeBase.init(worldDir);
+        ConversationManager.init(worldDir);
         initialized = true;
         KnowsItAll.LOG.info("Knowledge base initialized for world: {}", server.getFolderName());
     }
@@ -53,6 +55,7 @@ public class WorldEventHandler {
             }
             if (!anyLoaded) {
                 KnowledgeBase.save();
+                ConversationManager.save();
                 initialized = false;
             }
         }
@@ -61,5 +64,6 @@ public class WorldEventHandler {
     @SubscribeEvent
     public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         KnowledgeBase.save();
+        ConversationManager.save();
     }
 }

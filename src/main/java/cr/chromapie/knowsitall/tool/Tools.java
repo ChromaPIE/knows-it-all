@@ -317,30 +317,18 @@ public class Tools {
 
         @Override
         public String execute(EntityPlayerMP player, String[] args) {
-            if (args.length < 1) return "Error: need search query";
-            String query = args[0].toLowerCase();
-            for (int i = 1; i < args.length; i++) {
-                query += " " + args[i].toLowerCase();
-            }
+            if (args.length < 1) return "Error: need item name. Usage: recipe:item or recipe:item:handler_filter";
 
-            // First check knowledge base for marked recipes
-            List<KnowledgeEntry> recipes = KnowledgeBase.getByType("recipe");
+            String itemQuery = args[0];
+            String handlerFilter = args.length > 1 ? args[1] : null;
+
+            List<KnowledgeEntry> kbRecipes = KnowledgeBase.getByType("recipe");
             StringBuilder found = new StringBuilder();
-            int count = 0;
 
-            for (KnowledgeEntry entry : recipes) {
-                String name = entry.getName()
-                    .toLowerCase();
-                String dataStr = entry.getData()
-                    .toString()
-                    .toLowerCase();
-
-                if (name.contains(query) || dataStr.contains(query)) {
-                    if (count > 0) found.append("\n---\n");
-                    found.append("[KB] Recipe: ")
-                        .append(entry.getName())
-                        .append("\n");
-
+            for (KnowledgeEntry entry : kbRecipes) {
+                String name = entry.getName().toLowerCase();
+                if (name.contains(itemQuery.toLowerCase())) {
+                    found.append("[KB] ").append(entry.getName()).append("\n");
                     var data = entry.getData();
                     if (data.has("recipe")) {
                         var recipe = data.getAsJsonObject("recipe");
@@ -348,83 +336,100 @@ public class Tools {
                             found.append("Ingredients: ");
                             var ings = recipe.getAsJsonArray("ingredients");
                             for (int i = 0; i < ings.size(); i++) {
-                                var ing = ings.get(i)
-                                    .getAsJsonObject();
+                                var ing = ings.get(i).getAsJsonObject();
                                 if (i > 0) found.append(", ");
-                                found.append(
-                                    ing.get("count")
-                                        .getAsInt())
-                                    .append("x ")
-                                    .append(
-                                        ing.get("name")
-                                            .getAsString());
+                                found.append(ing.get("count").getAsInt()).append("x ")
+                                    .append(ing.get("name").getAsString());
                             }
                             found.append("\n");
                         }
-                        if (recipe.has("result")) {
-                            found.append("Result: ")
-                                .append(
-                                    recipe.get("resultCount")
-                                        .getAsInt())
-                                .append("x ")
-                                .append(
-                                    recipe.get("result")
-                                        .getAsString())
-                                .append("\n");
-                        }
-                        if (recipe.has("extra")) {
-                            found.append("Extra: ")
-                                .append(
-                                    recipe.get("extra")
-                                        .toString())
-                                .append("\n");
-                        }
                     }
-                    count++;
-                    if (count >= 3) break;
+                    return found.toString();
                 }
             }
 
-            // If not found in KB, query NEI directly
-            if (count == 0) {
-                try {
-                    ItemStack stack = cr.chromapie.knowsitall.nei.NEIRecipeQuery.findItemByName(query);
-                    if (stack != null) {
-                        var neiRecipes = cr.chromapie.knowsitall.nei.NEIRecipeQuery.getRecipesFor(stack);
-                        if (!neiRecipes.isEmpty()) {
-                            found.append("[NEI] Found ")
-                                .append(neiRecipes.size())
-                                .append(" recipe(s) for ")
-                                .append(stack.getDisplayName())
-                                .append(":\n");
-                            for (var r : neiRecipes) {
-                                found.append("---\n")
-                                    .append(r.toString())
-                                    .append("\n");
-                                count++;
-                                if (count >= 3) break;
+            try {
+                ItemStack stack = cr.chromapie.knowsitall.nei.NEIRecipeQuery.findItemByName(itemQuery);
+                if (stack == null) {
+                    return "No item found matching: " + itemQuery;
+                }
+
+                var allRecipes = cr.chromapie.knowsitall.nei.NEIRecipeQuery.getRecipesFor(stack);
+                if (allRecipes.isEmpty()) {
+                    return "No recipes found for: " + stack.getDisplayName();
+                }
+
+                if (handlerFilter != null && !handlerFilter.isEmpty()) {
+                    allRecipes = cr.chromapie.knowsitall.nei.NEIRecipeQuery.filterByHandler(allRecipes, handlerFilter);
+                    if (allRecipes.isEmpty()) {
+                        return "No recipes found for " + stack.getDisplayName() + " in handler: " + handlerFilter;
+                    }
+                }
+
+                var byHandler = cr.chromapie.knowsitall.nei.NEIRecipeQuery.groupByHandler(allRecipes);
+                int totalRecipes = allRecipes.size();
+                int numHandlers = byHandler.size();
+
+                found.append("[NEI] ").append(stack.getDisplayName()).append(" - ")
+                    .append(totalRecipes).append(" recipe(s) in ").append(numHandlers).append(" handler(s)\n\n");
+
+                if (totalRecipes <= 8) {
+                    for (var r : allRecipes) {
+                        found.append(r.toCompactString()).append("\n");
+                    }
+                } else if (numHandlers == 1) {
+                    String handler = byHandler.keySet().iterator().next();
+                    found.append("All in §e").append(handler).append("§f:\n");
+                    int shown = 0;
+                    for (var r : allRecipes) {
+                        found.append(r.toCompactString()).append("\n");
+                        shown++;
+                        if (shown >= 10) {
+                            found.append("... and ").append(totalRecipes - shown).append(" more\n");
+                            break;
+                        }
+                    }
+                } else {
+                    found.append("§eSummary by handler:§f\n");
+                    for (var e : byHandler.entrySet()) {
+                        found.append("• ").append(e.getKey()).append(": ").append(e.getValue().size()).append(" recipe(s)\n");
+                    }
+                    found.append("\n§eRecipes:§f\n");
+                    int shown = 0;
+                    for (var e : byHandler.entrySet()) {
+                        int handlerShown = 0;
+                        for (var r : e.getValue()) {
+                            found.append(r.toCompactString()).append("\n");
+                            shown++;
+                            handlerShown++;
+                            if (handlerShown >= 3) {
+                                if (e.getValue().size() > 3) {
+                                    found.append("  ... +").append(e.getValue().size() - 3).append(" more in ").append(e.getKey()).append("\n");
+                                }
+                                break;
                             }
                         }
+                        if (shown >= 15) {
+                            found.append("(Output truncated. Use recipe:item:handler to filter.)\n");
+                            break;
+                        }
                     }
-                } catch (Exception e) {
-                    // NEI query failed, continue
                 }
-            }
 
-            if (count == 0) {
-                return "No recipe found for: " + query;
+                return found.toString();
+            } catch (Exception e) {
+                return "Error querying recipes: " + e.getMessage();
             }
-            return found.toString();
         }
 
         @Override
         public String getDescription() {
-            return "Get recipe by name (searches KB then NEI)";
+            return "Get recipe by name, optionally filter by handler";
         }
 
         @Override
         public String getArgFormat() {
-            return ":query";
+            return ":item[:handler_filter]";
         }
     }
 

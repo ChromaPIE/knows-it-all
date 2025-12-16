@@ -21,19 +21,30 @@ import com.google.gson.GsonBuilder;
 import cr.chromapie.knowsitall.KnowsItAll;
 import cr.chromapie.knowsitall.ModConfig;
 import cr.chromapie.knowsitall.SystemPrompt;
+import cr.chromapie.knowsitall.tool.ToolRegistry;
 
 public class OpenAIClient {
 
     private static final Gson GSON = new GsonBuilder().create();
-    private static final ExecutorService EXECUTOR = Executors.newCachedThreadPool(r -> {
-        Thread t = new Thread(r, "KnowsItAll-API");
-        t.setDaemon(true);
-        return t;
-    });
+    private static volatile ExecutorService executor = createExecutor();
 
     private static final int CONNECT_TIMEOUT = 30000;
     private static final int READ_TIMEOUT = 120000;
-    private static volatile boolean shutdown = false;
+
+    private static ExecutorService createExecutor() {
+        return Executors.newCachedThreadPool(r -> {
+            Thread t = new Thread(r, "KnowsItAll-API");
+            t.setDaemon(true);
+            return t;
+        });
+    }
+
+    private static ExecutorService getExecutor() {
+        if (executor == null || executor.isShutdown()) {
+            executor = createExecutor();
+        }
+        return executor;
+    }
 
     public static CompletableFuture<String> chat(UUID playerId, String userMessage, String context,
         Consumer<String> onSuccess, Consumer<String> onError) {
@@ -53,16 +64,11 @@ public class OpenAIClient {
                 }
                 return null;
             }
-        }, EXECUTOR);
+        }, getExecutor());
     }
 
     public static CompletableFuture<String> continueWithToolResult(UUID playerId, String toolResult,
         Consumer<String> onSuccess, Consumer<String> onError) {
-
-        if (shutdown) {
-            if (onError != null) onError.accept("Client shutdown");
-            return CompletableFuture.completedFuture(null);
-        }
 
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -79,7 +85,7 @@ public class OpenAIClient {
                 }
                 return null;
             }
-        }, EXECUTOR);
+        }, getExecutor());
     }
 
     private static String sendChatRequest(UUID playerId, String userMessage, String context) throws IOException {
@@ -87,24 +93,27 @@ public class OpenAIClient {
             throw new IOException("API not configured. Use /knows config to set API key and URL.");
         }
 
-        List<ChatMessage> messages = new ArrayList<>();
-        messages.add(ChatMessage.system(SystemPrompt.get()));
-
-        // Add conversation history
-        messages.addAll(ConversationManager.getHistory(playerId));
-
-        // Add current context and user message
         String fullUserMessage = userMessage;
         if (context != null && !context.isEmpty()) {
             fullUserMessage = "Context:\n" + context + "\n\nUser: " + userMessage;
         }
+
+        String systemPrompt = SystemPrompt.get();
+        int systemTokens = TokenEstimator.estimate(systemPrompt);
+        int currentMsgTokens = TokenEstimator.estimate(fullUserMessage) + 4;
+
+        List<ChatMessage> messages = new ArrayList<>();
+        messages.add(ChatMessage.system(systemPrompt));
+        messages.addAll(ConversationManager.getHistoryWithinBudget(playerId, systemTokens, currentMsgTokens));
         messages.add(ChatMessage.user(fullUserMessage));
 
         String response = sendRequest(messages);
 
-        // Save to history
         ConversationManager.addUserMessage(playerId, userMessage);
-        ConversationManager.addAssistantMessage(playerId, response);
+        String cleanResponse = ToolRegistry.cleanResponse(response);
+        if (ToolRegistry.isMeaningfulResponse(cleanResponse)) {
+            ConversationManager.addAssistantMessage(playerId, cleanResponse);
+        }
 
         return response;
     }
@@ -114,16 +123,23 @@ public class OpenAIClient {
             throw new IOException("API not configured.");
         }
 
+        String systemPrompt = SystemPrompt.get();
+        int systemTokens = TokenEstimator.estimate(systemPrompt);
+        String toolMessage = "[Tool Output - respond to user with this data]\n" + toolResult;
+        int toolMsgTokens = TokenEstimator.estimate(toolMessage) + 4;
+
         List<ChatMessage> messages = new ArrayList<>();
-        messages.add(ChatMessage.system(SystemPrompt.get()));
-        messages.addAll(ConversationManager.getHistory(playerId));
-        messages.add(ChatMessage.system("Tool results:\n" + toolResult));
+        messages.add(ChatMessage.system(systemPrompt));
+        messages.addAll(ConversationManager.getHistoryWithinBudget(playerId, systemTokens, toolMsgTokens));
+        messages.add(ChatMessage.user(toolMessage));
 
         String response = sendRequest(messages);
 
-        // Save tool result and response to history
         ConversationManager.addToolResult(playerId, toolResult);
-        ConversationManager.addAssistantMessage(playerId, response);
+        String cleanResponse = ToolRegistry.cleanResponse(response);
+        if (ToolRegistry.isMeaningfulResponse(cleanResponse)) {
+            ConversationManager.addAssistantMessage(playerId, cleanResponse);
+        }
 
         return response;
     }
@@ -192,7 +208,8 @@ public class OpenAIClient {
     }
 
     public static void shutdown() {
-        shutdown = true;
-        EXECUTOR.shutdown();
+        if (executor != null && !executor.isShutdown()) {
+            executor.shutdown();
+        }
     }
 }

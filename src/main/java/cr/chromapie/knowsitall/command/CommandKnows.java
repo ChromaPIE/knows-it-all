@@ -19,13 +19,14 @@ import cr.chromapie.knowsitall.context.ContextCollector;
 import cr.chromapie.knowsitall.knowledge.KnowledgeBase;
 import cr.chromapie.knowsitall.knowledge.KnowledgeEntry;
 import cr.chromapie.knowsitall.tool.ToolRegistry;
+import cr.chromapie.knowsitall.ui.ChatScreen;
 import cr.chromapie.knowsitall.util.ChatFormatter;
 import cr.chromapie.knowsitall.util.ServerScheduler;
 import cr.chromapie.knowsitall.util.WorldDataReader;
 
 public class CommandKnows extends CommandBase {
 
-    private static final String[] SUBCOMMANDS = { "ask", "config", "kb", "query", "clear", "help" };
+    private static final String[] SUBCOMMANDS = { "ask", "chat", "config", "kb", "query", "clear", "help" };
     private static final String[] CONFIG_OPTIONS = { "url", "key", "model", "reload" };
     private static final String[] KB_OPTIONS = { "list", "rename", "remove", "clear", "info" };
 
@@ -78,6 +79,10 @@ public class CommandKnows extends CommandBase {
                 break;
             case "clear":
                 handleClear(sender);
+                break;
+            case "chat":
+            case "gui":
+                handleOpenChat(sender);
                 break;
             case "help":
             case "?":
@@ -180,7 +185,16 @@ public class CommandKnows extends CommandBase {
         EntityPlayerMP player = (EntityPlayerMP) sender;
         int count = ConversationManager.getMessageCount(player.getUniqueID());
         ConversationManager.clear(player.getUniqueID());
+        ServerScheduler.scheduleClient(ChatScreen::clearMessages);
         ChatFormatter.success(sender, "Cleared " + count + " messages from history.");
+    }
+
+    private void handleOpenChat(ICommandSender sender) {
+        if (!(sender instanceof EntityPlayerMP)) {
+            ChatFormatter.error(sender, "Requires player.");
+            return;
+        }
+        ServerScheduler.scheduleClient(ChatScreen::open);
     }
 
     private void handleConfig(ICommandSender sender, String[] args) {

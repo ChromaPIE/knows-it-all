@@ -12,10 +12,13 @@ public final class ModConfig {
     private static String apiKey = "";
     private static String model = "gpt-4o";
     private static String userPrompt = "";
-    private static int maxTokens = 2048;
+    private static int maxTokens = 4096;
     private static double temperature = 0.7;
     private static boolean promptOnMismatch = true;
     private static int defaultScanRange = 5;
+    private static int contextWindow = 128000;
+    private static int reservedOutputTokens = 8192;
+    private static int maxHistoryMessages = 100;
 
     private ModConfig() {}
 
@@ -40,9 +43,33 @@ public final class ModConfig {
 
         model = config.getString("model", "api", model, "Model identifier");
 
-        maxTokens = config.getInt("maxTokens", "api", maxTokens, 128, 8192, "Max response tokens");
+        maxTokens = config.getInt("maxTokens", "api", maxTokens, 128, 16384, "Max response tokens");
 
         temperature = config.getFloat("temperature", "api", (float) temperature, 0.0f, 2.0f, "Response randomness");
+
+        contextWindow = config.getInt(
+            "contextWindow",
+            "api",
+            contextWindow,
+            4096,
+            200000,
+            "Model context window size in tokens");
+
+        reservedOutputTokens = config.getInt(
+            "reservedOutputTokens",
+            "api",
+            reservedOutputTokens,
+            1024,
+            32768,
+            "Tokens reserved for model output");
+
+        maxHistoryMessages = config.getInt(
+            "maxHistoryMessages",
+            "conversation",
+            maxHistoryMessages,
+            10,
+            500,
+            "Maximum conversation history messages to keep");
 
         userPrompt = config.getString(
             "userPrompt",
@@ -126,6 +153,22 @@ public final class ModConfig {
 
     public static int getDefaultScanRange() {
         return defaultScanRange;
+    }
+
+    public static int getContextWindow() {
+        return contextWindow;
+    }
+
+    public static int getReservedOutputTokens() {
+        return reservedOutputTokens;
+    }
+
+    public static int getMaxInputTokens() {
+        return contextWindow - reservedOutputTokens;
+    }
+
+    public static int getMaxHistoryMessages() {
+        return maxHistoryMessages;
     }
 
     public static boolean isConfigured() {

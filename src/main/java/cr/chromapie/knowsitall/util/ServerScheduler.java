@@ -8,20 +8,31 @@ import cpw.mods.fml.common.gameevent.TickEvent;
 
 public class ServerScheduler {
 
-    private static final Queue<Runnable> tasks = new ConcurrentLinkedQueue<>();
+    private static final Queue<Runnable> serverTasks = new ConcurrentLinkedQueue<>();
+    private static final Queue<Runnable> clientTasks = new ConcurrentLinkedQueue<>();
 
     public static void schedule(Runnable task) {
-        tasks.add(task);
+        serverTasks.add(task);
+    }
+
+    public static void scheduleClient(Runnable task) {
+        clientTasks.add(task);
     }
 
     @SubscribeEvent
     public void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) {
-            return;
-        }
-
+        if (event.phase != TickEvent.Phase.END) return;
         Runnable task;
-        while ((task = tasks.poll()) != null) {
+        while ((task = serverTasks.poll()) != null) {
+            task.run();
+        }
+    }
+
+    @SubscribeEvent
+    public void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        Runnable task;
+        while ((task = clientTasks.poll()) != null) {
             task.run();
         }
     }

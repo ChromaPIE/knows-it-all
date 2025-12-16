@@ -50,9 +50,18 @@ public class ToolRegistry {
     }
 
     public static String cleanResponse(String response) {
-        return TOOL_PATTERN.matcher(response)
+        String cleaned = TOOL_PATTERN.matcher(response)
             .replaceAll("")
             .trim();
+        cleaned = cleaned.replaceAll("\\n{3,}", "\n\n");
+        cleaned = cleaned.replaceAll("^(§[0-9a-fk-or])*\\s*\\n+", "$1");
+        return cleaned;
+    }
+
+    public static boolean isMeaningfulResponse(String response) {
+        if (response == null) return false;
+        String stripped = response.replaceAll("§[0-9a-fk-or]", "").trim();
+        return !stripped.isEmpty();
     }
 
     public static String getToolDescriptions() {
