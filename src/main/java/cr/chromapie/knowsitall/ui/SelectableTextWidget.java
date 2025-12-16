@@ -1,5 +1,13 @@
 package cr.chromapie.knowsitall.ui;
 
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.IntSupplier;
+
+import net.minecraft.client.gui.GuiScreen;
+
 import com.cleanroommc.modularui.api.drawable.IKey;
 import com.cleanroommc.modularui.api.widget.IFocusedWidget;
 import com.cleanroommc.modularui.api.widget.Interactable;
@@ -15,17 +23,8 @@ import com.cleanroommc.modularui.utils.Platform;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widget.sizer.Box;
 
-import net.minecraft.client.gui.GuiScreen;
-
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-
-import java.awt.*;
-import java.awt.geom.Point2D;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.function.IntSupplier;
 
 @SideOnly(Side.CLIENT)
 public class SelectableTextWidget extends Widget<SelectableTextWidget> implements IFocusedWidget, Interactable {
@@ -135,8 +134,10 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
             String beforeSel = getVisibleText(line.substring(0, charStart));
             String selected = getVisibleText(line.substring(0, charEnd));
 
-            float x0 = padding.getLeft() + renderer.getFontRenderer().getStringWidth(beforeSel) * this.scale;
-            float x1 = padding.getLeft() + renderer.getFontRenderer().getStringWidth(selected) * this.scale;
+            float x0 = padding.getLeft() + renderer.getFontRenderer()
+                .getStringWidth(beforeSel) * this.scale;
+            float x1 = padding.getLeft() + renderer.getFontRenderer()
+                .getStringWidth(selected) * this.scale;
 
             drawSelectionRect(x0, lineY - 1, x1, lineY + fontHeight - 1);
         }
@@ -169,10 +170,14 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
         Platform.setupDrawColor();
         GlStateManager.color(red, green, blue, alpha);
         Platform.startDrawing(Platform.DrawMode.QUADS, Platform.VertexFormat.POS, bufferBuilder -> {
-            bufferBuilder.pos(x0, y1, 0.0D).endVertex();
-            bufferBuilder.pos(x1, y1, 0.0D).endVertex();
-            bufferBuilder.pos(x1, y0, 0.0D).endVertex();
-            bufferBuilder.pos(x0, y0, 0.0D).endVertex();
+            bufferBuilder.pos(x0, y1, 0.0D)
+                .endVertex();
+            bufferBuilder.pos(x1, y1, 0.0D)
+                .endVertex();
+            bufferBuilder.pos(x1, y0, 0.0D)
+                .endVertex();
+            bufferBuilder.pos(x0, y0, 0.0D)
+                .endVertex();
         });
         GlStateManager.color(1, 1, 1, 1);
     }
@@ -193,7 +198,8 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
                 totalVisualLines++;
                 continue;
             }
-            List<String> wrappedLines = renderer.getFontRenderer().listFormattedStringToWidth(line, wrapWidth);
+            List<String> wrappedLines = renderer.getFontRenderer()
+                .listFormattedStringToWidth(line, wrapWidth);
             totalVisualLines += Math.max(1, wrappedLines.size());
         }
 
@@ -207,7 +213,8 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
         TextRenderer renderer = TextRenderer.SHARED;
         float maxW = 0;
         for (String line : this.lines) {
-            float w = renderer.getFontRenderer().getStringWidth(line) * this.scale;
+            float w = renderer.getFontRenderer()
+                .getStringWidth(line) * this.scale;
             if (w > maxW) maxW = w;
         }
         return (int) Math.ceil(maxW + padding.horizontal());
@@ -241,7 +248,8 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
                 continue;
             }
             visibleLine += c;
-            float newX = renderer.getFontRenderer().getStringWidth(visibleLine) * this.scale;
+            float newX = renderer.getFontRenderer()
+                .getStringWidth(visibleLine) * this.scale;
             if (newX > relX) {
                 if (relX - currentX < newX - relX) {
                     break;
@@ -337,7 +345,10 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
         if (this.lines.isEmpty()) return;
         selStart.setLocation(0, 0);
         int lastLine = this.lines.size() - 1;
-        selEnd.setLocation(this.lines.get(lastLine).length(), lastLine);
+        selEnd.setLocation(
+            this.lines.get(lastLine)
+                .length(),
+            lastLine);
         hasSelection = true;
     }
 
@@ -374,9 +385,11 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
             if (i == start.y) {
                 sb.append(line.substring(Math.min(start.x, line.length())));
             } else if (i == end.y) {
-                sb.append("\n").append(line.substring(0, Math.min(end.x, line.length())));
+                sb.append("\n")
+                    .append(line.substring(0, Math.min(end.x, line.length())));
             } else {
-                sb.append("\n").append(line);
+                sb.append("\n")
+                    .append(line);
             }
         }
         return sb.toString();

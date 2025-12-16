@@ -4,10 +4,9 @@ import cpw.mods.fml.common.network.ByteBufUtils;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
-import io.netty.buffer.ByteBuf;
-
 import cr.chromapie.knowsitall.ui.ChatScreen;
 import cr.chromapie.knowsitall.util.ServerScheduler;
+import io.netty.buffer.ByteBuf;
 
 public class ChatResponsePacket implements IMessage {
 
@@ -43,6 +42,7 @@ public class ChatResponsePacket implements IMessage {
     }
 
     public static class Handler implements IMessageHandler<ChatResponsePacket, IMessage> {
+
         @Override
         public IMessage onMessage(ChatResponsePacket packet, MessageContext ctx) {
             final String content = packet.content;

@@ -22,7 +22,8 @@ import cr.chromapie.knowsitall.ModConfig;
 
 public class ConversationManager {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting()
+        .create();
     private static File saveFile;
     private static final Map<UUID, List<ChatMessage>> CONVERSATIONS = new HashMap<>();
 
@@ -35,18 +36,22 @@ public class ConversationManager {
         if (saveFile == null || !saveFile.exists()) return;
 
         try (FileReader reader = new FileReader(saveFile)) {
-            JsonObject root = new JsonParser().parse(reader).getAsJsonObject();
+            JsonObject root = new JsonParser().parse(reader)
+                .getAsJsonObject();
             CONVERSATIONS.clear();
 
             for (Map.Entry<String, JsonElement> entry : root.entrySet()) {
                 UUID playerId = UUID.fromString(entry.getKey());
-                JsonArray messagesJson = entry.getValue().getAsJsonArray();
+                JsonArray messagesJson = entry.getValue()
+                    .getAsJsonArray();
                 List<ChatMessage> messages = new ArrayList<>();
 
                 for (JsonElement msgElem : messagesJson) {
                     JsonObject msgObj = msgElem.getAsJsonObject();
-                    String role = msgObj.get("role").getAsString();
-                    String content = msgObj.get("content").getAsString();
+                    String role = msgObj.get("role")
+                        .getAsString();
+                    String content = msgObj.get("content")
+                        .getAsString();
                     messages.add(new ChatMessage(role, content));
                 }
 
@@ -62,7 +67,8 @@ public class ConversationManager {
         if (saveFile == null) return;
 
         try {
-            saveFile.getParentFile().mkdirs();
+            saveFile.getParentFile()
+                .mkdirs();
             JsonObject root = new JsonObject();
 
             for (Map.Entry<UUID, List<ChatMessage>> entry : CONVERSATIONS.entrySet()) {
@@ -73,7 +79,10 @@ public class ConversationManager {
                     msgObj.addProperty("content", msg.getContent());
                     messagesJson.add(msgObj);
                 }
-                root.add(entry.getKey().toString(), messagesJson);
+                root.add(
+                    entry.getKey()
+                        .toString(),
+                    messagesJson);
             }
 
             try (FileWriter writer = new FileWriter(saveFile)) {

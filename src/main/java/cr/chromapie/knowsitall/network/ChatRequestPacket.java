@@ -1,22 +1,22 @@
 package cr.chromapie.knowsitall.network;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import net.minecraft.entity.player.EntityPlayerMP;
+
 import cpw.mods.fml.common.network.ByteBufUtils;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
-import io.netty.buffer.ByteBuf;
-import net.minecraft.entity.player.EntityPlayerMP;
-
 import cr.chromapie.knowsitall.ModConfig;
 import cr.chromapie.knowsitall.api.ConversationManager;
 import cr.chromapie.knowsitall.api.OpenAIClient;
 import cr.chromapie.knowsitall.context.ContextCollector;
 import cr.chromapie.knowsitall.tool.ToolRegistry;
 import cr.chromapie.knowsitall.util.ServerScheduler;
-
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import io.netty.buffer.ByteBuf;
 
 public class ChatRequestPacket implements IMessage {
 
@@ -39,6 +39,7 @@ public class ChatRequestPacket implements IMessage {
     }
 
     public static class Handler implements IMessageHandler<ChatRequestPacket, IMessage> {
+
         private static final int MAX_TOOL_ITERATIONS = 5;
 
         @Override
@@ -50,7 +51,10 @@ public class ChatRequestPacket implements IMessage {
 
         private void handleRequest(EntityPlayerMP player, String message) {
             if (!ModConfig.isConfigured()) {
-                sendResponse(player, "API not configured. Use /knows config key <your-api-key>", ChatResponsePacket.TYPE_ERROR);
+                sendResponse(
+                    player,
+                    "API not configured. Use /knows config key <your-api-key>",
+                    ChatResponsePacket.TYPE_ERROR);
                 return;
             }
 
@@ -61,8 +65,7 @@ public class ChatRequestPacket implements IMessage {
                 message,
                 context,
                 response -> processResponse(player, response, 0, new HashSet<>()),
-                error -> sendResponse(player, "Error: " + error, ChatResponsePacket.TYPE_ERROR)
-            );
+                error -> sendResponse(player, "Error: " + error, ChatResponsePacket.TYPE_ERROR));
         }
 
         private String getToolSignature(ToolRegistry.ToolCall call) {
@@ -85,7 +88,9 @@ public class ChatRequestPacket implements IMessage {
                         if (toolHint.length() > 0) toolHint.append(", ");
                         toolHint.append(call.name);
                         if (call.args.length > 0) {
-                            toolHint.append("(").append(String.join(", ", call.args)).append(")");
+                            toolHint.append("(")
+                                .append(String.join(", ", call.args))
+                                .append(")");
                         }
                     }
                     String hintText = "Using tools: " + toolHint.toString() + "...";
@@ -102,8 +107,7 @@ public class ChatRequestPacket implements IMessage {
                         player.getUniqueID(),
                         toolResults,
                         followUp -> processResponse(player, followUp, iteration + 1, executedTools),
-                        err -> sendResponse(player, "Error: " + err, ChatResponsePacket.TYPE_ERROR)
-                    );
+                        err -> sendResponse(player, "Error: " + err, ChatResponsePacket.TYPE_ERROR));
                 });
             } else {
                 String cleanResponse = ToolRegistry.cleanResponse(response);
@@ -114,9 +118,8 @@ public class ChatRequestPacket implements IMessage {
         }
 
         private void sendResponse(EntityPlayerMP player, String content, int messageType) {
-            ServerScheduler.schedule(() -> {
-                PacketHandler.INSTANCE.sendTo(new ChatResponsePacket(content, messageType), player);
-            });
+            ServerScheduler.schedule(
+                () -> { PacketHandler.INSTANCE.sendTo(new ChatResponsePacket(content, messageType), player); });
         }
     }
 }

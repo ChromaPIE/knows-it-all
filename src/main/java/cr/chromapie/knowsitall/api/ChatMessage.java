@@ -32,8 +32,7 @@ public class ChatMessage {
 
     public boolean isToolResult() {
         if (content == null) return false;
-        return content.startsWith("[Tool Output") ||
-               ("system".equals(role) && content.startsWith("Tool results:"));
+        return content.startsWith("[Tool Output") || ("system".equals(role) && content.startsWith("Tool results:"));
     }
 
     public boolean isDisplayable() {

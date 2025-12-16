@@ -17,7 +17,8 @@ public final class SystemPrompt {
         sb.append("Colors: §0black §1dark_blue §2dark_green §3dark_aqua §4dark_red §5dark_purple ");
         sb.append("§6gold §7gray §8dark_gray §9blue §agreen §baqua §cred §dlight_purple §eyellow §fwhite\n");
         sb.append("Styles: §lbold§f §oitalic§f §nunderline§f §mstrike§f\n");
-        sb.append("Usage: §b§lItem Name§f for items, §aBlock§f for blocks, §e42§f for numbers, §cwarning§f for warnings.\n");
+        sb.append(
+            "Usage: §b§lItem Name§f for items, §aBlock§f for blocks, §e42§f for numbers, §cwarning§f for warnings.\n");
         sb.append("Lists: Use §7•§f or §7-§f with § colors, NOT markdown bullets. Do NOT use markdown tables.\n\n");
 
         sb.append("§e§l=== TOOLS ===§r\n");
@@ -32,9 +33,11 @@ public final class SystemPrompt {
         sb.append("§7[TOOL:recipe:item]§r - Get recipes for item\n");
         sb.append("§7[TOOL:recipe:item:handler]§r - Get recipes filtered by handler (furnace, assembler, etc.)\n");
         sb.append("§7[TOOL:kb_note:topic:content]§r - Save learned info to KB\n");
-        sb.append("§c§lIMPORTANT:§r After receiving tool results, you MUST respond to the user with meaningful text.\n");
+        sb.append(
+            "§c§lIMPORTANT:§r After receiving tool results, you MUST respond to the user with meaningful text.\n");
         sb.append("Even if results say 'not found' or are empty, explain this to the user and suggest alternatives.\n");
-        sb.append("Do NOT just output a tool call - always include text response. Do NOT repeat the same tool call.\n\n");
+        sb.append(
+            "Do NOT just output a tool call - always include text response. Do NOT repeat the same tool call.\n\n");
 
         sb.append("§e§l=== RECIPE QUERIES ===§r\n");
         sb.append("§c§lNEVER§r answer recipe questions from memory - ALWAYS use [TOOL:recipe:item]!\n");

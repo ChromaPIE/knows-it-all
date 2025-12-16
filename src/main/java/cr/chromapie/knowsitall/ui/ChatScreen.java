@@ -1,5 +1,10 @@
 package cr.chromapie.knowsitall.ui;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.jetbrains.annotations.NotNull;
+
 import com.cleanroommc.modularui.api.drawable.IKey;
 import com.cleanroommc.modularui.drawable.Rectangle;
 import com.cleanroommc.modularui.factory.ClientGUI;
@@ -15,19 +20,13 @@ import com.cleanroommc.modularui.widgets.TextWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.cleanroommc.modularui.widgets.layout.Row;
 
-import org.jetbrains.annotations.NotNull;
-
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
 import cr.chromapie.knowsitall.KnowsItAll;
 import cr.chromapie.knowsitall.network.ChatRequestPacket;
 import cr.chromapie.knowsitall.network.ChatResponsePacket;
 import cr.chromapie.knowsitall.network.ChatSyncRequestPacket;
 import cr.chromapie.knowsitall.network.PacketHandler;
-
-import cpw.mods.fml.relauncher.Side;
-import cpw.mods.fml.relauncher.SideOnly;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @SideOnly(Side.CLIENT)
 public class ChatScreen extends CustomModularScreen {
@@ -56,7 +55,10 @@ public class ChatScreen extends CustomModularScreen {
         panel.background(new Rectangle().setColor(PANEL_BG));
 
         messageList = new ListWidget<>();
-        messageList.left(6).right(6).top(6).bottom(50);
+        messageList.left(6)
+            .right(6)
+            .top(6)
+            .bottom(50);
         messageList.background(new Rectangle().setColor(MSG_AREA_BG));
         messageList.padding(4);
 
@@ -76,8 +78,12 @@ public class ChatScreen extends CustomModularScreen {
         });
 
         Row inputRow = new Row();
-        inputRow.left(6).right(6).bottom(6).height(38);
-        inputRow.child(inputField.marginRight(4)).child(sendBtn);
+        inputRow.left(6)
+            .right(6)
+            .bottom(6)
+            .height(38);
+        inputRow.child(inputField.marginRight(4))
+            .child(sendBtn);
 
         panel.child(messageList);
         panel.child(inputRow);
@@ -93,7 +99,8 @@ public class ChatScreen extends CustomModularScreen {
 
     private void sendMessage() {
         if (inputField == null) return;
-        String text = inputField.getText().trim();
+        String text = inputField.getText()
+            .trim();
         if (text.isEmpty()) return;
 
         addMessage(new ChatMessage(ChatMessage.Role.USER, text));
@@ -145,11 +152,13 @@ public class ChatScreen extends CustomModularScreen {
             contentWidget.expanded();
             contentWidget.siblingWidth(LABEL_WIDTH);
             contentWidget.alignment(Alignment.TopLeft);
-            contentWidget.padding(3).paddingBottom(2);
+            contentWidget.padding(3)
+                .paddingBottom(2);
 
             Flow container = Flow.row()
                 .crossAxisAlignment(Alignment.CrossAxis.START)
-                .widthRel(1f).coverChildrenHeight();
+                .widthRel(1f)
+                .coverChildrenHeight();
             container.child(spacer);
             container.child(contentWidget);
             return container;
@@ -159,18 +168,21 @@ public class ChatScreen extends CustomModularScreen {
         String label = isUser ? "§7You:" : (isError ? "§c✖" : "§dKNOWS:");
 
         TextWidget labelWidget = new TextWidget(IKey.str(label));
-        labelWidget.width(LABEL_WIDTH).top(3);
+        labelWidget.width(LABEL_WIDTH)
+            .top(3);
 
         SelectableTextWidget contentWidget = new SelectableTextWidget(IKey.str(ensureWhiteLines(msg.content)));
         contentWidget.expanded();
         contentWidget.siblingWidth(LABEL_WIDTH);
         contentWidget.alignment(Alignment.TopLeft);
         contentWidget.background(new Rectangle().setColor(bgColor));
-        contentWidget.padding(3).paddingBottom(5);
+        contentWidget.padding(3)
+            .paddingBottom(5);
 
         Flow container = Flow.row()
             .crossAxisAlignment(Alignment.CrossAxis.START)
-            .widthRel(1f).coverChildrenHeight()
+            .widthRel(1f)
+            .coverChildrenHeight()
             .marginBottom(2);
         container.child(labelWidget);
         container.child(contentWidget);
@@ -214,7 +226,8 @@ public class ChatScreen extends CustomModularScreen {
     public static void clearMessages() {
         messages.clear();
         if (instance != null && instance.messageList != null) {
-            instance.messageList.getChildren().clear();
+            instance.messageList.getChildren()
+                .clear();
         }
     }
 
@@ -236,7 +249,8 @@ public class ChatScreen extends CustomModularScreen {
             messages.add(new ChatMessage(role, content));
         }
         if (instance != null && instance.messageList != null) {
-            instance.messageList.getChildren().clear();
+            instance.messageList.getChildren()
+                .clear();
             for (ChatMessage msg : messages) {
                 instance.messageList.child(instance.createMessageWidget(msg));
             }
@@ -244,7 +258,13 @@ public class ChatScreen extends CustomModularScreen {
     }
 
     public static class ChatMessage {
-        public enum Role { USER, ASSISTANT, SYSTEM, TOOL_HINT }
+
+        public enum Role {
+            USER,
+            ASSISTANT,
+            SYSTEM,
+            TOOL_HINT
+        }
 
         public final Role role;
         public final String content;

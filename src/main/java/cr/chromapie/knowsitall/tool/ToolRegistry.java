@@ -60,7 +60,8 @@ public class ToolRegistry {
 
     public static boolean isMeaningfulResponse(String response) {
         if (response == null) return false;
-        String stripped = response.replaceAll("§[0-9a-fk-or]", "").trim();
+        String stripped = response.replaceAll("§[0-9a-fk-or]", "")
+            .trim();
         return !stripped.isEmpty();
     }
 

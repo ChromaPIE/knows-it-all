@@ -47,13 +47,8 @@ public final class ModConfig {
 
         temperature = config.getFloat("temperature", "api", (float) temperature, 0.0f, 2.0f, "Response randomness");
 
-        contextWindow = config.getInt(
-            "contextWindow",
-            "api",
-            contextWindow,
-            4096,
-            200000,
-            "Model context window size in tokens");
+        contextWindow = config
+            .getInt("contextWindow", "api", contextWindow, 4096, 200000, "Model context window size in tokens");
 
         reservedOutputTokens = config.getInt(
             "reservedOutputTokens",

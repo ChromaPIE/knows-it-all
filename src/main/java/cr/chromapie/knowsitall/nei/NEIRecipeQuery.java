@@ -30,7 +30,8 @@ public class NEIRecipeQuery {
         ArrayList<ICraftingHandler> handlers = GuiCraftingRecipe.getCraftingHandlers("item", stack);
 
         for (ICraftingHandler handler : handlers) {
-            String handlerName = GuiRecipeTab.getHandlerInfo(handler).getHandlerName();
+            String handlerName = GuiRecipeTab.getHandlerInfo(handler)
+                .getHandlerName();
             String shortName = getShortHandlerName(handlerName);
             int numRecipes = handler.numRecipes();
 
@@ -73,7 +74,8 @@ public class NEIRecipeQuery {
         if (fullName == null) return "Unknown";
         if (fullName.contains(".")) {
             String last = fullName.substring(fullName.lastIndexOf('.') + 1);
-            return last.replace("Handler", "").replace("Recipe", "");
+            return last.replace("Handler", "")
+                .replace("Recipe", "");
         }
         return fullName;
     }
@@ -81,7 +83,8 @@ public class NEIRecipeQuery {
     public static Map<String, List<RecipeResult>> groupByHandler(List<RecipeResult> recipes) {
         Map<String, List<RecipeResult>> map = new LinkedHashMap<>();
         for (RecipeResult r : recipes) {
-            map.computeIfAbsent(r.handler, k -> new ArrayList<>()).add(r);
+            map.computeIfAbsent(r.handler, k -> new ArrayList<>())
+                .add(r);
         }
         return map;
     }
@@ -90,8 +93,10 @@ public class NEIRecipeQuery {
         String lowerFilter = filter.toLowerCase();
         List<RecipeResult> result = new ArrayList<>();
         for (RecipeResult r : recipes) {
-            if (r.handler.toLowerCase().contains(lowerFilter) ||
-                r.handlerFull.toLowerCase().contains(lowerFilter)) {
+            if (r.handler.toLowerCase()
+                .contains(lowerFilter)
+                || r.handlerFull.toLowerCase()
+                    .contains(lowerFilter)) {
                 result.add(r);
             }
         }
@@ -103,7 +108,8 @@ public class NEIRecipeQuery {
         List<RecipeResult> result = new ArrayList<>();
         for (RecipeResult r : recipes) {
             for (Ingredient ing : r.ingredients) {
-                if (ing.name.toLowerCase().contains(lowerFilter)) {
+                if (ing.name.toLowerCase()
+                    .contains(lowerFilter)) {
                     result.add(r);
                     break;
                 }
@@ -126,7 +132,8 @@ public class NEIRecipeQuery {
             for (ItemStack stack : ItemList.items) {
                 if (stack == null) continue;
                 String name = stack.getDisplayName();
-                if (name != null && pattern.matcher(name.toLowerCase()).find()) {
+                if (name != null && pattern.matcher(name.toLowerCase())
+                    .find()) {
                     return stack.copy();
                 }
             }
@@ -135,6 +142,7 @@ public class NEIRecipeQuery {
     }
 
     public static class Ingredient {
+
         public String name;
         public int count;
 
@@ -150,6 +158,7 @@ public class NEIRecipeQuery {
     }
 
     public static class RecipeResult {
+
         public String handler;
         public String handlerFull;
         public String result;
@@ -159,17 +168,30 @@ public class NEIRecipeQuery {
 
         public String toCompactString() {
             StringBuilder sb = new StringBuilder();
-            sb.append("[").append(handler).append("] ");
+            sb.append("[")
+                .append(handler)
+                .append("] ");
             for (int i = 0; i < ingredients.size(); i++) {
                 if (i > 0) sb.append(" + ");
                 sb.append(ingredients.get(i));
             }
-            sb.append(" → ").append(resultCount).append("x ").append(result);
+            sb.append(" → ")
+                .append(resultCount)
+                .append("x ")
+                .append(result);
             if (extra != null) {
                 if (extra.has("EU/t")) {
-                    sb.append(" (").append(extra.get("EU/t").getAsInt()).append(" EU/t");
+                    sb.append(" (")
+                        .append(
+                            extra.get("EU/t")
+                                .getAsInt())
+                        .append(" EU/t");
                     if (extra.has("duration")) {
-                        sb.append(", ").append(extra.get("duration").getAsInt()).append(" ticks");
+                        sb.append(", ")
+                            .append(
+                                extra.get("duration")
+                                    .getAsInt())
+                            .append(" ticks");
                     }
                     sb.append(")");
                 }
@@ -179,15 +201,22 @@ public class NEIRecipeQuery {
 
         public String toDetailedString() {
             StringBuilder sb = new StringBuilder();
-            sb.append("§e").append(handler).append("§f:\n");
+            sb.append("§e")
+                .append(handler)
+                .append("§f:\n");
             sb.append("  Ingredients: ");
             for (int i = 0; i < ingredients.size(); i++) {
                 if (i > 0) sb.append(", ");
                 sb.append(ingredients.get(i));
             }
-            sb.append("\n  Result: ").append(resultCount).append("x ").append(result);
-            if (extra != null && !extra.entrySet().isEmpty()) {
-                sb.append("\n  Extra: ").append(extra.toString());
+            sb.append("\n  Result: ")
+                .append(resultCount)
+                .append("x ")
+                .append(result);
+            if (extra != null && !extra.entrySet()
+                .isEmpty()) {
+                sb.append("\n  Extra: ")
+                    .append(extra.toString());
             }
             return sb.toString();
         }

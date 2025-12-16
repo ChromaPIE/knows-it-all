@@ -326,9 +326,12 @@ public class Tools {
             StringBuilder found = new StringBuilder();
 
             for (KnowledgeEntry entry : kbRecipes) {
-                String name = entry.getName().toLowerCase();
+                String name = entry.getName()
+                    .toLowerCase();
                 if (name.contains(itemQuery.toLowerCase())) {
-                    found.append("[KB] ").append(entry.getName()).append("\n");
+                    found.append("[KB] ")
+                        .append(entry.getName())
+                        .append("\n");
                     var data = entry.getData();
                     if (data.has("recipe")) {
                         var recipe = data.getAsJsonObject("recipe");
@@ -336,10 +339,16 @@ public class Tools {
                             found.append("Ingredients: ");
                             var ings = recipe.getAsJsonArray("ingredients");
                             for (int i = 0; i < ings.size(); i++) {
-                                var ing = ings.get(i).getAsJsonObject();
+                                var ing = ings.get(i)
+                                    .getAsJsonObject();
                                 if (i > 0) found.append(", ");
-                                found.append(ing.get("count").getAsInt()).append("x ")
-                                    .append(ing.get("name").getAsString());
+                                found.append(
+                                    ing.get("count")
+                                        .getAsInt())
+                                    .append("x ")
+                                    .append(
+                                        ing.get("name")
+                                            .getAsString());
                             }
                             found.append("\n");
                         }
@@ -370,41 +379,68 @@ public class Tools {
                 int totalRecipes = allRecipes.size();
                 int numHandlers = byHandler.size();
 
-                found.append("[NEI] ").append(stack.getDisplayName()).append(" - ")
-                    .append(totalRecipes).append(" recipe(s) in ").append(numHandlers).append(" handler(s)\n\n");
+                found.append("[NEI] ")
+                    .append(stack.getDisplayName())
+                    .append(" - ")
+                    .append(totalRecipes)
+                    .append(" recipe(s) in ")
+                    .append(numHandlers)
+                    .append(" handler(s)\n\n");
 
                 if (totalRecipes <= 8) {
                     for (var r : allRecipes) {
-                        found.append(r.toCompactString()).append("\n");
+                        found.append(r.toCompactString())
+                            .append("\n");
                     }
                 } else if (numHandlers == 1) {
-                    String handler = byHandler.keySet().iterator().next();
-                    found.append("All in §e").append(handler).append("§f:\n");
+                    String handler = byHandler.keySet()
+                        .iterator()
+                        .next();
+                    found.append("All in §e")
+                        .append(handler)
+                        .append("§f:\n");
                     int shown = 0;
                     for (var r : allRecipes) {
-                        found.append(r.toCompactString()).append("\n");
+                        found.append(r.toCompactString())
+                            .append("\n");
                         shown++;
                         if (shown >= 10) {
-                            found.append("... and ").append(totalRecipes - shown).append(" more\n");
+                            found.append("... and ")
+                                .append(totalRecipes - shown)
+                                .append(" more\n");
                             break;
                         }
                     }
                 } else {
                     found.append("§eSummary by handler:§f\n");
                     for (var e : byHandler.entrySet()) {
-                        found.append("• ").append(e.getKey()).append(": ").append(e.getValue().size()).append(" recipe(s)\n");
+                        found.append("• ")
+                            .append(e.getKey())
+                            .append(": ")
+                            .append(
+                                e.getValue()
+                                    .size())
+                            .append(" recipe(s)\n");
                     }
                     found.append("\n§eRecipes:§f\n");
                     int shown = 0;
                     for (var e : byHandler.entrySet()) {
                         int handlerShown = 0;
                         for (var r : e.getValue()) {
-                            found.append(r.toCompactString()).append("\n");
+                            found.append(r.toCompactString())
+                                .append("\n");
                             shown++;
                             handlerShown++;
                             if (handlerShown >= 3) {
-                                if (e.getValue().size() > 3) {
-                                    found.append("  ... +").append(e.getValue().size() - 3).append(" more in ").append(e.getKey()).append("\n");
+                                if (e.getValue()
+                                    .size() > 3) {
+                                    found.append("  ... +")
+                                        .append(
+                                            e.getValue()
+                                                .size() - 3)
+                                        .append(" more in ")
+                                        .append(e.getKey())
+                                        .append("\n");
                                 }
                                 break;
                             }

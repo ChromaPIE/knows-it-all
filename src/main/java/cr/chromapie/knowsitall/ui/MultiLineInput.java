@@ -1,5 +1,16 @@
 package cr.chromapie.knowsitall.ui;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.gui.GuiScreen;
+
+import org.jetbrains.annotations.NotNull;
+import org.lwjgl.input.Keyboard;
+
 import com.cleanroommc.modularui.api.UpOrDown;
 import com.cleanroommc.modularui.api.widget.IFocusedWidget;
 import com.cleanroommc.modularui.api.widget.Interactable;
@@ -9,19 +20,8 @@ import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.utils.Color;
 import com.cleanroommc.modularui.widget.Widget;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.GuiScreen;
-
-import org.jetbrains.annotations.NotNull;
-import org.lwjgl.input.Keyboard;
-
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Consumer;
 
 @SideOnly(Side.CLIENT)
 public class MultiLineInput extends Widget<MultiLineInput> implements Interactable, IFocusedWidget {
@@ -96,22 +96,29 @@ public class MultiLineInput extends Widget<MultiLineInput> implements Interactab
     private int[] getCursorLineCol(int pos) {
         int charCount = 0;
         for (int i = 0; i < cachedLines.size(); i++) {
-            int lineLen = cachedLines.get(i).length();
+            int lineLen = cachedLines.get(i)
+                .length();
             if (charCount + lineLen >= pos) {
-                return new int[]{i, pos - charCount};
+                return new int[] { i, pos - charCount };
             }
             charCount += lineLen;
         }
-        return new int[]{cachedLines.size() - 1, cachedLines.isEmpty() ? 0 : cachedLines.get(cachedLines.size() - 1).length()};
+        return new int[] { cachedLines.size() - 1, cachedLines.isEmpty() ? 0
+            : cachedLines.get(cachedLines.size() - 1)
+                .length() };
     }
 
     private int getPosFromLineCol(int line, int col) {
         int pos = 0;
         for (int i = 0; i < line && i < cachedLines.size(); i++) {
-            pos += cachedLines.get(i).length();
+            pos += cachedLines.get(i)
+                .length();
         }
         if (line < cachedLines.size()) {
-            pos += Math.min(col, cachedLines.get(line).length());
+            pos += Math.min(
+                col,
+                cachedLines.get(line)
+                    .length());
         }
         return Math.min(pos, text.length());
     }
@@ -121,10 +128,14 @@ public class MultiLineInput extends Widget<MultiLineInput> implements Interactab
         super.draw(context, widgetTheme);
 
         FontRenderer font = Minecraft.getMinecraft().fontRenderer;
-        int areaWidth = getArea().width - getArea().getPadding().horizontal();
-        int areaHeight = getArea().height - getArea().getPadding().vertical();
-        int padLeft = getArea().getPadding().getLeft();
-        int padTop = getArea().getPadding().getTop();
+        int areaWidth = getArea().width - getArea().getPadding()
+            .horizontal();
+        int areaHeight = getArea().height - getArea().getPadding()
+            .vertical();
+        int padLeft = getArea().getPadding()
+            .getLeft();
+        int padTop = getArea().getPadding()
+            .getTop();
 
         updateCache(areaWidth, font);
         int lineHeight = font.FONT_HEIGHT + 1;
@@ -169,7 +180,8 @@ public class MultiLineInput extends Widget<MultiLineInput> implements Interactab
             int displayLine = cursorLine - scrollOffset;
             if (displayLine >= 0 && displayLine < maxVisibleLines) {
                 String lineText = cursorLine < cachedLines.size() ? cachedLines.get(cursorLine) : "";
-                int cursorX = padLeft + font.getStringWidth(lineText.substring(0, Math.min(cursorCol, lineText.length())));
+                int cursorX = padLeft
+                    + font.getStringWidth(lineText.substring(0, Math.min(cursorCol, lineText.length())));
                 GuiDraw.drawRect(cursorX, padTop + displayLine * lineHeight, 1, lineHeight - 1, cursorColor);
             }
         }
@@ -309,7 +321,9 @@ public class MultiLineInput extends Widget<MultiLineInput> implements Interactab
             String clipboard = GuiScreen.getClipboardString();
             if (clipboard != null) {
                 if (hasSelection()) deleteSelection();
-                insertText(clipboard.replace("\n", " ").replace("\r", ""));
+                insertText(
+                    clipboard.replace("\n", " ")
+                        .replace("\r", ""));
             }
             return Result.SUCCESS;
         }
@@ -380,7 +394,8 @@ public class MultiLineInput extends Widget<MultiLineInput> implements Interactab
     @Override
     public boolean onMouseScroll(UpOrDown scrollDirection, int amount) {
         if (isHovering() && cachedLines.size() > 1) {
-            scrollOffset = Math.max(0, Math.min(scrollOffset + (scrollDirection == UpOrDown.UP ? -1 : 1), cachedLines.size() - 1));
+            scrollOffset = Math
+                .max(0, Math.min(scrollOffset + (scrollDirection == UpOrDown.UP ? -1 : 1), cachedLines.size() - 1));
             return true;
         }
         return false;
@@ -388,9 +403,12 @@ public class MultiLineInput extends Widget<MultiLineInput> implements Interactab
 
     private int getPositionFromMouse() {
         FontRenderer font = Minecraft.getMinecraft().fontRenderer;
-        int areaWidth = getArea().width - getArea().getPadding().horizontal();
-        int padLeft = getArea().getPadding().getLeft();
-        int padTop = getArea().getPadding().getTop();
+        int areaWidth = getArea().width - getArea().getPadding()
+            .horizontal();
+        int padLeft = getArea().getPadding()
+            .getLeft();
+        int padTop = getArea().getPadding()
+            .getTop();
         int lineHeight = font.FONT_HEIGHT + 1;
 
         updateCache(areaWidth, font);
@@ -405,7 +423,10 @@ public class MultiLineInput extends Widget<MultiLineInput> implements Interactab
         int col = 0;
         for (int i = 0; i <= line.length(); i++) {
             if (font.getStringWidth(line.substring(0, i)) >= mx) {
-                col = i > 0 && mx < font.getStringWidth(line.substring(0, i)) - font.getCharWidth(line.charAt(i - 1)) / 2 ? i - 1 : i;
+                col = i > 0
+                    && mx < font.getStringWidth(line.substring(0, i)) - font.getCharWidth(line.charAt(i - 1)) / 2
+                        ? i - 1
+                        : i;
                 break;
             }
             col = i;
