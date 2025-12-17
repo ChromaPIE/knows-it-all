@@ -28,13 +28,7 @@ public final class ModConfig {
         load();
     }
 
-    public static void reload() {
-        if (config == null) return;
-        config.load();
-        load();
-    }
-
-    public static void load() {
+    private static void load() {
         config.load();
 
         apiUrl = config.getString("apiUrl", "api", apiUrl, "OpenAI-compatible API endpoint URL");

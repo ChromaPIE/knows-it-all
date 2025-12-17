@@ -207,7 +207,7 @@ public class MultiLineInput extends Widget<MultiLineInput> implements Interactab
                 }
             }
         }
-        if (!currentLine.isEmpty()) {
+        if (currentLine.length() > 0) {
             lines.add(currentLine.toString());
         }
         return lines;

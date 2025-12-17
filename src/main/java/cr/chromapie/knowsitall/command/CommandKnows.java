@@ -8,7 +8,6 @@ import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayerMP;
 
-import cr.chromapie.knowsitall.ModConfig;
 import cr.chromapie.knowsitall.api.ConversationManager;
 import cr.chromapie.knowsitall.knowledge.KnowledgeBase;
 import cr.chromapie.knowsitall.knowledge.KnowledgeEntry;
@@ -18,8 +17,7 @@ import cr.chromapie.knowsitall.util.ServerScheduler;
 
 public class CommandKnows extends CommandBase {
 
-    private static final String[] SUBCOMMANDS = { "config", "kb", "clear", "help" };
-    private static final String[] CONFIG_OPTIONS = { "url", "key", "model", "reload" };
+    private static final String[] SUBCOMMANDS = { "kb", "clear", "help" };
     private static final String[] KB_OPTIONS = { "list", "rename", "remove", "clear", "info" };
 
     @Override
@@ -29,7 +27,7 @@ public class CommandKnows extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/knows <config|kb|clear|help>";
+        return "/knows <kb|clear|help>";
     }
 
     @Override
@@ -53,10 +51,6 @@ public class CommandKnows extends CommandBase {
         String[] subArgs = Arrays.copyOfRange(args, 1, args.length);
 
         switch (subCommand) {
-            case "config":
-            case "cfg":
-                handleConfig(sender, subArgs);
-                break;
             case "kb":
             case "knowledge":
                 handleKnowledgeBase(sender, subArgs);
@@ -83,55 +77,6 @@ public class CommandKnows extends CommandBase {
         ConversationManager.clear(player.getUniqueID());
         ServerScheduler.scheduleClient(ChatScreen::clearMessages);
         ChatFormatter.success(sender, "Cleared " + count + " messages from history.");
-    }
-
-    private void handleConfig(ICommandSender sender, String[] args) {
-        if (args.length == 0) {
-            showCurrentConfig(sender);
-            return;
-        }
-
-        String option = args[0].toLowerCase();
-        String[] valueArgs = Arrays.copyOfRange(args, 1, args.length);
-        String value = String.join(" ", valueArgs);
-
-        switch (option) {
-            case "url":
-                if (value.isEmpty()) {
-                    ChatFormatter.listItem(sender, "API URL", ModConfig.getApiUrl());
-                } else {
-                    ModConfig.setApiUrl(value);
-                    ChatFormatter.success(sender, "API URL updated.");
-                }
-                break;
-            case "key":
-                if (value.isEmpty()) {
-                    String key = ModConfig.getApiKey();
-                    String masked = key.isEmpty() ? "(not set)"
-                        : key.substring(0, Math.min(8, key.length())) + "..."
-                            + key.substring(Math.max(0, key.length() - 4));
-                    ChatFormatter.listItem(sender, "API Key", masked);
-                } else {
-                    ModConfig.setApiKey(value);
-                    ChatFormatter.success(sender, "API Key updated.");
-                }
-                break;
-            case "model":
-                if (value.isEmpty()) {
-                    ChatFormatter.listItem(sender, "Model", ModConfig.getModel());
-                } else {
-                    ModConfig.setModel(value);
-                    ChatFormatter.success(sender, "Model updated to: " + value);
-                }
-                break;
-            case "reload":
-                ModConfig.reload();
-                ChatFormatter.success(sender, "Config reloaded from file.");
-                break;
-            default:
-                ChatFormatter.error(sender, "Unknown option: " + option);
-                ChatFormatter.info(sender, "Available: url, key, model, reload");
-        }
     }
 
     private void handleKnowledgeBase(ICommandSender sender, String[] args) {
@@ -241,24 +186,11 @@ public class CommandKnows extends CommandBase {
         ChatFormatter.success(sender, "Cleared " + count + " entries.");
     }
 
-    private void showCurrentConfig(ICommandSender sender) {
-        ChatFormatter.header(sender, "Configuration");
-        ChatFormatter.listItem(sender, "API URL", ModConfig.getApiUrl());
-
-        String key = ModConfig.getApiKey();
-        String masked = key.isEmpty() ? "(not set)"
-            : key.substring(0, Math.min(8, key.length())) + "..." + key.substring(Math.max(0, key.length() - 4));
-        ChatFormatter.listItem(sender, "API Key", masked);
-        ChatFormatter.listItem(sender, "Model", ModConfig.getModel());
-        ChatFormatter.listItem(sender, "Status", ModConfig.isConfigured() ? "Ready" : "Not configured");
-    }
-
     private void showHelp(ICommandSender sender) {
         ChatFormatter.header(sender, "Knows It All");
-        ChatFormatter.commandHelp(sender, "Ctrl+K", "Open chat interface");
+        ChatFormatter.commandHelp(sender, "[K]", "Open chat interface (configurable)");
         ChatFormatter.commandHelp(sender, "/knows kb", "Manage bookmarks");
         ChatFormatter.commandHelp(sender, "/knows clear", "Clear conversation history");
-        ChatFormatter.commandHelp(sender, "/knows config", "API settings");
     }
 
     @Override
@@ -268,13 +200,8 @@ public class CommandKnows extends CommandBase {
         }
 
         String sub = args[0].toLowerCase();
-        if (args.length == 2) {
-            if (sub.equals("config") || sub.equals("cfg")) {
-                return getListOfStringsMatchingLastWord(args, CONFIG_OPTIONS);
-            }
-            if (sub.equals("kb") || sub.equals("knowledge")) {
-                return getListOfStringsMatchingLastWord(args, KB_OPTIONS);
-            }
+        if (args.length == 2 && (sub.equals("kb") || sub.equals("knowledge"))) {
+            return getListOfStringsMatchingLastWord(args, KB_OPTIONS);
         }
 
         if (args.length == 3 && (sub.equals("kb") || sub.equals("knowledge"))) {

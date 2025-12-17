@@ -5,11 +5,18 @@ import net.minecraftforge.common.MinecraftForge;
 import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
+import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cr.chromapie.knowsitall.nei.CommandRecipe;
 import cr.chromapie.knowsitall.nei.NEIIntegration;
 
 public class ClientProxy extends CommonProxy {
+
+    @Override
+    public void preInit(FMLPreInitializationEvent event) {
+        super.preInit(event);
+        KeyHandler.register();
+    }
 
     @Override
     public void init(FMLInitializationEvent event) {

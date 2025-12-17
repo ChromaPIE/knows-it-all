@@ -10,19 +10,26 @@ import com.cleanroommc.modularui.drawable.Rectangle;
 import com.cleanroommc.modularui.factory.ClientGUI;
 import com.cleanroommc.modularui.screen.CustomModularScreen;
 import com.cleanroommc.modularui.screen.ModularPanel;
+import com.cleanroommc.modularui.screen.SecondaryPanel;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.utils.Alignment;
 import com.cleanroommc.modularui.utils.Color;
+import com.cleanroommc.modularui.value.StringValue;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.ListWidget;
 import com.cleanroommc.modularui.widgets.TextWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.cleanroommc.modularui.widgets.layout.Row;
+import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
+import com.github.bsideup.jabel.Desugar;
+
+import net.minecraft.entity.player.EntityPlayer;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import cr.chromapie.knowsitall.KnowsItAll;
+import cr.chromapie.knowsitall.ModConfig;
 import cr.chromapie.knowsitall.api.ChatMessage;
 import cr.chromapie.knowsitall.network.ChatRequestPacket;
 import cr.chromapie.knowsitall.network.ChatResponsePacket;
@@ -45,6 +52,11 @@ public class ChatScreen extends CustomModularScreen {
     private ListWidget<Widget<?>, ?> messageList;
     private MultiLineInput inputField;
     private TextWidget emptyPlaceholder;
+    private SecondaryPanel settingsPanelHandler;
+
+    private StringValue urlValue;
+    private StringValue keyValue;
+    private StringValue modelValue;
 
     public ChatScreen() {
         super(KnowsItAll.MODID);
@@ -55,6 +67,8 @@ public class ChatScreen extends CustomModularScreen {
     public ModularPanel buildUI(ModularGuiContext context) {
         ModularPanel panel = ModularPanel.defaultPanel("knows_chat", WIDTH, HEIGHT);
         panel.background(new Rectangle().setColor(PANEL_BG));
+
+        settingsPanelHandler = new SecondaryPanel(panel, this::buildSettingsPanel, false);
 
         messageList = new ListWidget<>();
         messageList.left(6)
@@ -71,15 +85,31 @@ public class ChatScreen extends CustomModularScreen {
             .bottom(50);
         emptyPlaceholder.alignment(Alignment.Center);
 
+        TextWidget modelLabel = new TextWidget(IKey.dynamic(() -> "§7§oCurrent model: " + ModConfig.getModel()));
+        modelLabel.left(6)
+            .bottom(38)
+            .height(10);
+        modelLabel.alignment(Alignment.CenterLeft);
+
+        ButtonWidget<?> configBtn = new ButtonWidget<>();
+        configBtn.size(12, 10);
+        configBtn.right(6)
+            .bottom(38);
+        configBtn.overlay(IKey.str("§eC"));
+        configBtn.onMousePressed(btn -> {
+            settingsPanelHandler.openPanel();
+            return true;
+        });
+
         inputField = new MultiLineInput();
-        inputField.height(38);
+        inputField.height(30);
         inputField.expanded();
         inputField.setMaxLength(500);
         inputField.background(new Rectangle().setColor(INPUT_BG));
         inputField.onEnter(text -> sendMessage());
 
         ButtonWidget<?> sendBtn = new ButtonWidget<>();
-        sendBtn.size(40, 38);
+        sendBtn.size(40, 30);
         sendBtn.overlay(IKey.str("§aSend"));
         sendBtn.onMousePressed(btn -> {
             sendMessage();
@@ -90,12 +120,14 @@ public class ChatScreen extends CustomModularScreen {
         inputRow.left(6)
             .right(6)
             .bottom(6)
-            .height(38);
+            .height(30);
         inputRow.child(inputField.marginRight(4))
             .child(sendBtn);
 
         panel.child(messageList);
         panel.child(emptyPlaceholder);
+        panel.child(modelLabel);
+        panel.child(configBtn);
         panel.child(inputRow);
 
         for (DisplayMessage msg : messages) {
@@ -103,6 +135,99 @@ public class ChatScreen extends CustomModularScreen {
         }
 
         updatePlaceholderVisibility();
+
+        return panel;
+    }
+
+    private ModularPanel buildSettingsPanel(ModularPanel parent, EntityPlayer player) {
+        ModularPanel panel = ModularPanel.defaultPanel("knows_settings", 200, 155);
+        panel.background(new Outline(Color.argb(40, 40, 50, 250), Color.argb(100, 120, 140, 255), 2));
+
+        TextWidget title = new TextWidget(IKey.str("§lAI Settings"));
+        title.top(8)
+            .left(10);
+
+        ButtonWidget<?> closeBtn = ButtonWidget.panelCloseButton();
+
+        urlValue = new StringValue(ModConfig.getApiUrl());
+        keyValue = new StringValue(ModConfig.getApiKey());
+        modelValue = new StringValue(ModConfig.getModel());
+
+        TextWidget urlLabel = new TextWidget(IKey.str("§7URL:"));
+        urlLabel.left(10)
+            .top(26)
+            .height(10);
+
+        TextFieldWidget urlInput = new TextFieldWidget();
+        urlInput.left(10)
+            .right(10)
+            .top(36)
+            .height(14);
+        urlInput.value(urlValue);
+        urlInput.setMaxLength(200);
+
+        TextWidget keyLabel = new TextWidget(IKey.str("§7Key:"));
+        keyLabel.left(10)
+            .top(56)
+            .height(10);
+
+        PasswordFieldWidget keyInput = new PasswordFieldWidget();
+        keyInput.left(10)
+            .right(10)
+            .top(66)
+            .height(14);
+        keyInput.value(keyValue);
+        keyInput.setMaxLength(200);
+
+        TextWidget modelInputLabel = new TextWidget(IKey.str("§7Model:"));
+        modelInputLabel.left(10)
+            .top(86)
+            .height(10);
+
+        TextFieldWidget modelInput = new TextFieldWidget();
+        modelInput.left(10)
+            .right(10)
+            .top(96)
+            .height(14);
+        modelInput.value(modelValue);
+        modelInput.setMaxLength(100);
+
+        ButtonWidget<?> confirmBtn = new ButtonWidget<>();
+        confirmBtn.size(50, 16);
+        confirmBtn.bottom(10)
+            .left(75);
+        confirmBtn.overlay(IKey.str("§aConfirm"));
+        confirmBtn.onMousePressed(btn -> {
+            String url = urlValue.getStringValue()
+                .trim();
+            String key = keyValue.getStringValue()
+                .trim();
+            String model = modelValue.getStringValue()
+                .trim();
+
+            if (!url.isEmpty()) {
+                ModConfig.setApiUrl(url);
+            }
+            if (!key.isEmpty()) {
+                ModConfig.setApiKey(key);
+            }
+            if (!model.isEmpty()) {
+                ModConfig.setModel(model);
+            }
+
+            settingsPanelHandler.closePanel();
+            return true;
+        });
+
+        panel.child(title);
+        panel.child(closeBtn);
+        panel.child(urlLabel);
+        panel.child(urlInput);
+        panel.child(keyLabel);
+        panel.child(keyInput);
+        panel.child(modelInputLabel);
+        panel.child(modelInput);
+        panel.child(confirmBtn);
 
         return panel;
     }
@@ -305,6 +430,7 @@ public class ChatScreen extends CustomModularScreen {
         }
     }
 
+    @Desugar
     public record DisplayMessage(Role role, String content) {
 
         public enum Role {

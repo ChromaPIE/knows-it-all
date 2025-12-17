@@ -11,11 +11,14 @@ import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.Vec3;
 import net.minecraft.world.World;
 
+import com.github.bsideup.jabel.Desugar;
+
 import cpw.mods.fml.common.registry.GameRegistry;
 import cr.chromapie.knowsitall.util.WorldDataReader;
 
 public class ContextCollector {
 
+    @Desugar
     public record BlockContext(int x, int y, int z, String blockId, String displayName, String data) {}
 
     public static BlockContext getLookingAt(EntityPlayerMP player, double maxDistance) {

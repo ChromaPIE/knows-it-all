@@ -85,7 +85,7 @@ public class ChatRequestPacket implements IMessage {
 
                     StringBuilder toolHint = new StringBuilder();
                     for (ToolRegistry.ToolCall call : toolCalls) {
-                        if (!toolHint.isEmpty()) toolHint.append(", ");
+                        if (toolHint.length() > 0) toolHint.append(", ");
                         toolHint.append(call.name);
                         if (call.args.length > 0) {
                             toolHint.append("(")
