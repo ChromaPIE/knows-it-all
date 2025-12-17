@@ -12,6 +12,8 @@ import net.minecraft.entity.player.EntityPlayerMP;
 public class ToolRegistry {
 
     private static final Pattern TOOL_PATTERN = Pattern.compile("\\[TOOL:([a-z_]+)((?::[^:\\]]+)*)]");
+    private static final Pattern EMOJI_PATTERN = Pattern
+        .compile("[\\x{1F300}-\\x{1F9FF}\\x{2600}-\\x{26FF}\\x{2700}-\\x{27BF}]");
     private static final Map<String, Tool> tools = new HashMap<>();
 
     public static void register(String name, Tool tool) {
@@ -53,6 +55,8 @@ public class ToolRegistry {
         String cleaned = TOOL_PATTERN.matcher(response)
             .replaceAll("")
             .trim();
+        cleaned = EMOJI_PATTERN.matcher(cleaned)
+            .replaceAll("");
         cleaned = cleaned.replaceAll("\\n{3,}", "\n\n");
         cleaned = cleaned.replaceAll("^(§[0-9a-fk-or])*\\s*\\n+", "$1");
         return cleaned;

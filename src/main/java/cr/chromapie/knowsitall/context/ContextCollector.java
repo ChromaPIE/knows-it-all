@@ -90,31 +90,6 @@ public class ContextCollector {
         return containers;
     }
 
-    public static List<BlockContext> getTileEntitiesInRange(EntityPlayerMP player, int range) {
-        List<BlockContext> tiles = new ArrayList<>();
-        World world = player.worldObj;
-
-        int px = (int) Math.floor(player.posX);
-        int py = (int) Math.floor(player.posY);
-        int pz = (int) Math.floor(player.posZ);
-
-        for (int x = px - range; x <= px + range; x++) {
-            for (int y = py - range; y <= py + range; y++) {
-                for (int z = pz - range; z <= pz + range; z++) {
-                    TileEntity te = world.getTileEntity(x, y, z);
-                    if (te != null) {
-                        BlockContext ctx = getBlockContext(world, x, y, z);
-                        if (ctx != null) {
-                            tiles.add(ctx);
-                        }
-                    }
-                }
-            }
-        }
-
-        return tiles;
-    }
-
     public static String getPlayerInventory(EntityPlayerMP player) {
         StringBuilder sb = new StringBuilder();
         sb.append("=== Player Inventory ===\n");

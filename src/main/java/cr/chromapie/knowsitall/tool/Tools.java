@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import net.minecraft.block.Block;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -13,6 +14,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
+import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.registry.GameRegistry;
 import cr.chromapie.knowsitall.knowledge.KnowledgeBase;
 import cr.chromapie.knowsitall.knowledge.KnowledgeEntry;
@@ -146,7 +148,9 @@ public class Tools {
                 for (KnowledgeEntry e : KnowledgeBase.getAll()) {
                     sb.append("- ")
                         .append(e.getId())
-                        .append(": ")
+                        .append(" [")
+                        .append(e.getType())
+                        .append("]: ")
                         .append(e.getName())
                         .append("\n");
                 }
@@ -157,7 +161,92 @@ public class Tools {
             if (entry == null) entry = KnowledgeBase.findByName(args[0]);
             if (entry == null) return "Entry not found: " + args[0];
 
-            return WorldDataReader.getFullDataForAI(player.worldObj, entry.getX(), entry.getY(), entry.getZ());
+            return formatEntry(player, entry);
+        }
+
+        private String formatEntry(EntityPlayerMP player, KnowledgeEntry entry) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("=== ")
+                .append(entry.getName())
+                .append(" [")
+                .append(entry.getType())
+                .append("] ===\n");
+
+            switch (entry.getType()) {
+                case "block":
+                    sb.append("Location: dim")
+                        .append(entry.getDimension())
+                        .append(" @ [")
+                        .append(entry.getX())
+                        .append(", ")
+                        .append(entry.getY())
+                        .append(", ")
+                        .append(entry.getZ())
+                        .append("]\n\n");
+                    sb.append(
+                        WorldDataReader.getFullDataForAI(player.worldObj, entry.getX(), entry.getY(), entry.getZ()));
+                    break;
+
+                case "recipe":
+                    com.google.gson.JsonObject data = entry.getData();
+                    if (data.has("recipe")) {
+                        com.google.gson.JsonObject recipe = data.getAsJsonObject("recipe");
+                        sb.append("Handler: ")
+                            .append(
+                                recipe.has("handler") ? recipe.get("handler")
+                                    .getAsString() : "Unknown")
+                            .append("\n");
+                        if (recipe.has("ingredients")) {
+                            sb.append("Ingredients:\n");
+                            for (com.google.gson.JsonElement ing : recipe.getAsJsonArray("ingredients")) {
+                                com.google.gson.JsonObject ingObj = ing.getAsJsonObject();
+                                sb.append("  - ")
+                                    .append(
+                                        ingObj.get("count")
+                                            .getAsInt())
+                                    .append("x ")
+                                    .append(
+                                        ingObj.get("name")
+                                            .getAsString())
+                                    .append("\n");
+                            }
+                        }
+                        sb.append("Result: ");
+                        if (recipe.has("resultCount")) {
+                            sb.append(
+                                recipe.get("resultCount")
+                                    .getAsInt())
+                                .append("x ");
+                        }
+                        sb.append(
+                            recipe.has("result") ? recipe.get("result")
+                                .getAsString() : entry.getName())
+                            .append("\n");
+                    } else {
+                        sb.append("(Recipe data not available in readable format)\n");
+                        sb.append(data);
+                    }
+                    break;
+
+                case "note":
+                    if (entry.getData()
+                        .has("content")) {
+                        sb.append(
+                            entry.getData()
+                                .get("content")
+                                .getAsString());
+                    } else {
+                        sb.append("(Empty note)");
+                    }
+                    break;
+
+                default:
+                    sb.append(
+                        entry.getData()
+                            .toString());
+            }
+
+            return sb.toString();
         }
 
         @Override
@@ -180,9 +269,10 @@ public class Tools {
                 int x = Integer.parseInt(args[0]);
                 int y = Integer.parseInt(args[1]);
                 int z = Integer.parseInt(args[2]);
-                String name = args[3];
+                StringBuilder name = new StringBuilder(args[3]);
                 for (int i = 4; i < args.length; i++) {
-                    name += ":" + args[i];
+                    name.append(":")
+                        .append(args[i]);
                 }
 
                 World world = player.worldObj;
@@ -203,7 +293,7 @@ public class Tools {
                 KnowledgeEntry entry = new KnowledgeEntry(
                     KnowledgeBase.generateId(),
                     "block",
-                    name,
+                    name.toString(),
                     KnowledgeEntry.blockData(dim, x, y, z, blockId, meta));
                 KnowledgeBase.add(entry);
                 return "Added to KB: " + name + " at [" + x + "," + y + "," + z + "]";
@@ -254,57 +344,87 @@ public class Tools {
         @Override
         public String execute(EntityPlayerMP player, String[] args) {
             if (args.length < 1) return "Error: need search query";
-            String query = args[0].toLowerCase();
+            StringBuilder query = new StringBuilder(args[0]);
             for (int i = 1; i < args.length; i++) {
-                query += " " + args[i].toLowerCase();
+                query.append(" ")
+                    .append(args[i]);
             }
+            String lowerQuery = query.toString()
+                .toLowerCase();
+
+            String[] words = lowerQuery.split("\\s+");
+            StringBuilder patternBuilder = new StringBuilder();
+            for (int i = 0; i < words.length; i++) {
+                if (i > 0) patternBuilder.append(".*");
+                patternBuilder.append(Pattern.quote(words[i]));
+            }
+            Pattern pattern = Pattern.compile(patternBuilder.toString(), Pattern.CASE_INSENSITIVE);
 
             List<String> results = new ArrayList<>();
-            int count = 0;
 
-            for (Object obj : Item.itemRegistry) {
-                Item item = (Item) obj;
-                if (item == null) continue;
-                String itemId = Item.itemRegistry.getNameForObject(item);
-                if (itemId == null) continue;
-
-                // Quick check on item ID first
-                boolean idMatch = itemId.toLowerCase()
-                    .contains(query);
-
-                // Only check meta 0 for most items
+            if (Loader.isModLoaded("NotEnoughItems")) {
                 try {
-                    ItemStack stack = new ItemStack(item, 1, 0);
-                    String displayName = stack.getDisplayName();
-                    if (displayName != null && !displayName.contains("tile.") && !displayName.contains("item.")) {
-                        if (idMatch || displayName.toLowerCase()
-                            .contains(query)) {
-                            results.add(itemId + ":0 = " + displayName);
-                            count++;
+                    for (ItemStack stack : codechicken.nei.ItemList.items) {
+                        if (stack == null) continue;
+                        String name = stack.getDisplayName();
+                        if (name == null || name.contains("tile.") || name.contains("item.")) continue;
+                        String itemId = Item.itemRegistry.getNameForObject(stack.getItem());
+                        if (itemId == null) itemId = "unknown";
+
+                        boolean nameMatch = pattern.matcher(name)
+                            .find();
+                        boolean idMatch = pattern.matcher(itemId)
+                            .find();
+
+                        if (nameMatch || idMatch) {
+                            results.add(itemId + ":" + stack.getItemDamage() + " = " + name);
+                            if (results.size() >= 25) break;
                         }
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    return "NEI search error: " + e.getMessage();
+                }
+            } else {
+                for (Object obj : Item.itemRegistry) {
+                    Item item = (Item) obj;
+                    if (item == null) continue;
+                    String itemId = Item.itemRegistry.getNameForObject(item);
+                    if (itemId == null) continue;
 
-                if (count >= 20) break;
+                    try {
+                        ItemStack stack = new ItemStack(item, 1, 0);
+                        String displayName = stack.getDisplayName();
+                        if (displayName != null && !displayName.contains("tile.") && !displayName.contains("item.")) {
+                            if (pattern.matcher(displayName)
+                                .find()
+                                || pattern.matcher(itemId)
+                                    .find()) {
+                                results.add(itemId + ":0 = " + displayName);
+                                if (results.size() >= 25) break;
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
             }
 
             if (results.isEmpty()) {
-                return "No items found matching: " + query;
+                return "No items found matching: " + query
+                    + "\nTip: Try partial words like 'uran carb' for 'Uranium Carbide'";
             }
 
-            StringBuilder sb = new StringBuilder("Found " + count + " items:\n");
+            StringBuilder sb = new StringBuilder("Found " + results.size() + " items:\n");
             for (String r : results) {
                 sb.append("- ")
                     .append(r)
                     .append("\n");
             }
-            if (count >= 20) sb.append("(limited to 20 results)");
+            if (results.size() >= 25) sb.append("(limited to 25 results)");
             return sb.toString();
         }
 
         @Override
         public String getDescription() {
-            return "Search items by display name";
+            return "Search items by name (fuzzy word match, case-insensitive)";
         }
 
         @Override
@@ -315,6 +435,9 @@ public class Tools {
 
     static class RecipeTool implements Tool {
 
+        private static final int DIRECT_DISPLAY_THRESHOLD = 8;
+        private static final int SINGLE_HANDLER_MAX_DISPLAY = 20;
+
         @Override
         public String execute(EntityPlayerMP player, String[] args) {
             if (args.length < 1) return "Error: need item name. Usage: recipe:item or recipe:item:handler_filter";
@@ -323,37 +446,11 @@ public class Tools {
             String handlerFilter = args.length > 1 ? args[1] : null;
 
             List<KnowledgeEntry> kbRecipes = KnowledgeBase.getByType("recipe");
-            StringBuilder found = new StringBuilder();
-
             for (KnowledgeEntry entry : kbRecipes) {
                 String name = entry.getName()
                     .toLowerCase();
                 if (name.contains(itemQuery.toLowerCase())) {
-                    found.append("[KB] ")
-                        .append(entry.getName())
-                        .append("\n");
-                    var data = entry.getData();
-                    if (data.has("recipe")) {
-                        var recipe = data.getAsJsonObject("recipe");
-                        if (recipe.has("ingredients")) {
-                            found.append("Ingredients: ");
-                            var ings = recipe.getAsJsonArray("ingredients");
-                            for (int i = 0; i < ings.size(); i++) {
-                                var ing = ings.get(i)
-                                    .getAsJsonObject();
-                                if (i > 0) found.append(", ");
-                                found.append(
-                                    ing.get("count")
-                                        .getAsInt())
-                                    .append("x ")
-                                    .append(
-                                        ing.get("name")
-                                            .getAsString());
-                            }
-                            found.append("\n");
-                        }
-                    }
-                    return found.toString();
+                    return formatKbRecipe(entry);
                 }
             }
 
@@ -368,94 +465,197 @@ public class Tools {
                     return "No recipes found for: " + stack.getDisplayName();
                 }
 
-                if (handlerFilter != null && !handlerFilter.isEmpty()) {
-                    allRecipes = cr.chromapie.knowsitall.nei.NEIRecipeQuery.filterByHandler(allRecipes, handlerFilter);
-                    if (allRecipes.isEmpty()) {
-                        return "No recipes found for " + stack.getDisplayName() + " in handler: " + handlerFilter;
-                    }
-                }
-
                 var byHandler = cr.chromapie.knowsitall.nei.NEIRecipeQuery.groupByHandler(allRecipes);
                 int totalRecipes = allRecipes.size();
                 int numHandlers = byHandler.size();
 
-                found.append("[NEI] ")
-                    .append(stack.getDisplayName())
-                    .append(" - ")
-                    .append(totalRecipes)
-                    .append(" recipe(s) in ")
-                    .append(numHandlers)
-                    .append(" handler(s)\n\n");
-
-                if (totalRecipes <= 8) {
-                    for (var r : allRecipes) {
-                        found.append(r.toCompactString())
-                            .append("\n");
-                    }
-                } else if (numHandlers == 1) {
-                    String handler = byHandler.keySet()
-                        .iterator()
-                        .next();
-                    found.append("All in §e")
-                        .append(handler)
-                        .append("§f:\n");
-                    int shown = 0;
-                    for (var r : allRecipes) {
-                        found.append(r.toCompactString())
-                            .append("\n");
-                        shown++;
-                        if (shown >= 10) {
-                            found.append("... and ")
-                                .append(totalRecipes - shown)
-                                .append(" more\n");
-                            break;
-                        }
-                    }
-                } else {
-                    found.append("§eSummary by handler:§f\n");
-                    for (var e : byHandler.entrySet()) {
-                        found.append("• ")
-                            .append(e.getKey())
-                            .append(": ")
-                            .append(
-                                e.getValue()
-                                    .size())
-                            .append(" recipe(s)\n");
-                    }
-                    found.append("\n§eRecipes:§f\n");
-                    int shown = 0;
-                    for (var e : byHandler.entrySet()) {
-                        int handlerShown = 0;
-                        for (var r : e.getValue()) {
-                            found.append(r.toCompactString())
-                                .append("\n");
-                            shown++;
-                            handlerShown++;
-                            if (handlerShown >= 3) {
-                                if (e.getValue()
-                                    .size() > 3) {
-                                    found.append("  ... +")
-                                        .append(
-                                            e.getValue()
-                                                .size() - 3)
-                                        .append(" more in ")
-                                        .append(e.getKey())
-                                        .append("\n");
-                                }
-                                break;
-                            }
-                        }
-                        if (shown >= 15) {
-                            found.append("(Output truncated. Use recipe:item:handler to filter.)\n");
-                            break;
-                        }
-                    }
+                if (handlerFilter != null && !handlerFilter.isEmpty()) {
+                    return formatFilteredRecipes(stack, allRecipes, handlerFilter);
                 }
 
-                return found.toString();
+                if (totalRecipes <= DIRECT_DISPLAY_THRESHOLD) {
+                    return formatAllRecipes(stack, allRecipes, totalRecipes, numHandlers);
+                }
+
+                if (numHandlers == 1) {
+                    return formatSingleHandler(stack, allRecipes, byHandler, totalRecipes);
+                }
+
+                return formatSummaryMode(stack, byHandler, totalRecipes, numHandlers);
+
             } catch (Exception e) {
                 return "Error querying recipes: " + e.getMessage();
             }
+        }
+
+        private String formatKbRecipe(KnowledgeEntry entry) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("[KB] ")
+                .append(entry.getName())
+                .append("\n");
+            var data = entry.getData();
+            if (data.has("recipe")) {
+                var recipe = data.getAsJsonObject("recipe");
+                if (recipe.has("handler")) {
+                    sb.append("Handler: ")
+                        .append(
+                            recipe.get("handler")
+                                .getAsString())
+                        .append("\n");
+                }
+                if (recipe.has("ingredients")) {
+                    sb.append("Ingredients: ");
+                    var ings = recipe.getAsJsonArray("ingredients");
+                    for (int i = 0; i < ings.size(); i++) {
+                        var ing = ings.get(i)
+                            .getAsJsonObject();
+                        if (i > 0) sb.append(", ");
+                        sb.append(
+                            ing.get("count")
+                                .getAsInt())
+                            .append("x ")
+                            .append(
+                                ing.get("name")
+                                    .getAsString());
+                    }
+                    sb.append("\n");
+                }
+                if (recipe.has("result")) {
+                    sb.append("Result: ");
+                    if (recipe.has("resultCount")) {
+                        sb.append(
+                            recipe.get("resultCount")
+                                .getAsInt())
+                            .append("x ");
+                    }
+                    sb.append(
+                        recipe.get("result")
+                            .getAsString())
+                        .append("\n");
+                }
+            }
+            return sb.toString();
+        }
+
+        private String formatAllRecipes(ItemStack stack,
+            java.util.List<cr.chromapie.knowsitall.nei.NEIRecipeQuery.RecipeResult> recipes, int total, int handlers) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("[NEI] ")
+                .append(stack.getDisplayName())
+                .append(" - ")
+                .append(total)
+                .append(" recipe(s) in ")
+                .append(handlers)
+                .append(" handler(s)\n\n");
+            for (var r : recipes) {
+                sb.append(r.toCompactString())
+                    .append("\n");
+            }
+            return sb.toString();
+        }
+
+        private String formatSingleHandler(ItemStack stack,
+            java.util.List<cr.chromapie.knowsitall.nei.NEIRecipeQuery.RecipeResult> recipes,
+            java.util.Map<String, java.util.List<cr.chromapie.knowsitall.nei.NEIRecipeQuery.RecipeResult>> byHandler,
+            int total) {
+            StringBuilder sb = new StringBuilder();
+            String handler = byHandler.keySet()
+                .iterator()
+                .next();
+            sb.append("[NEI] ")
+                .append(stack.getDisplayName())
+                .append(" - ")
+                .append(total)
+                .append(" recipe(s) in ")
+                .append(handler)
+                .append("\n\n");
+            int shown = 0;
+            for (var r : recipes) {
+                sb.append(r.toCompactString())
+                    .append("\n");
+                shown++;
+                if (shown >= SINGLE_HANDLER_MAX_DISPLAY) {
+                    sb.append("... and ")
+                        .append(total - shown)
+                        .append(" more recipes\n");
+                    break;
+                }
+            }
+            return sb.toString();
+        }
+
+        private String formatFilteredRecipes(ItemStack stack,
+            java.util.List<cr.chromapie.knowsitall.nei.NEIRecipeQuery.RecipeResult> allRecipes, String handlerFilter) {
+            var filtered = cr.chromapie.knowsitall.nei.NEIRecipeQuery.filterByHandler(allRecipes, handlerFilter);
+            if (filtered.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("No recipes for ")
+                    .append(stack.getDisplayName())
+                    .append(" in handler '")
+                    .append(handlerFilter)
+                    .append("'\n\nAvailable handlers: ");
+                var byHandler = cr.chromapie.knowsitall.nei.NEIRecipeQuery.groupByHandler(allRecipes);
+                boolean first = true;
+                for (String h : byHandler.keySet()) {
+                    if (!first) sb.append(", ");
+                    sb.append(h);
+                    first = false;
+                }
+                return sb.toString();
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("[NEI] ")
+                .append(stack.getDisplayName())
+                .append(" (")
+                .append(handlerFilter)
+                .append(") - ")
+                .append(filtered.size())
+                .append(" recipe(s)\n\n");
+            int shown = 0;
+            for (var r : filtered) {
+                sb.append(r.toCompactString())
+                    .append("\n");
+                shown++;
+                if (shown >= SINGLE_HANDLER_MAX_DISPLAY) {
+                    sb.append("... and ")
+                        .append(filtered.size() - shown)
+                        .append(" more recipes\n");
+                    break;
+                }
+            }
+            return sb.toString();
+        }
+
+        private String formatSummaryMode(ItemStack stack,
+            java.util.Map<String, java.util.List<cr.chromapie.knowsitall.nei.NEIRecipeQuery.RecipeResult>> byHandler,
+            int total, int numHandlers) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("[NEI] ")
+                .append(stack.getDisplayName())
+                .append(" - ")
+                .append(total)
+                .append(" recipe(s) in ")
+                .append(numHandlers)
+                .append(" handler(s)\n\n");
+
+            sb.append("Available handlers:\n");
+            for (var e : byHandler.entrySet()) {
+                sb.append("  • ")
+                    .append(e.getKey())
+                    .append(": ")
+                    .append(
+                        e.getValue()
+                            .size())
+                    .append(" recipe(s)\n");
+            }
+
+            sb.append("\n[ACTION] Ask user which handler they want to see. ");
+            sb.append("Then call recipe:")
+                .append(stack.getDisplayName())
+                .append(":handler_name");
+
+            return sb.toString();
         }
 
         @Override

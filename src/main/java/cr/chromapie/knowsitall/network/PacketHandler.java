@@ -9,7 +9,6 @@ public class PacketHandler {
     public static final SimpleNetworkWrapper INSTANCE = NetworkRegistry.INSTANCE.newSimpleChannel("knowsitall");
 
     public static void init() {
-        INSTANCE.registerMessage(ActionBarMessage.Handler.class, ActionBarMessage.class, 0, Side.CLIENT);
         INSTANCE.registerMessage(ChatRequestPacket.Handler.class, ChatRequestPacket.class, 1, Side.SERVER);
         INSTANCE.registerMessage(ChatResponsePacket.Handler.class, ChatResponsePacket.class, 2, Side.CLIENT);
         INSTANCE.registerMessage(ChatSyncRequestPacket.Handler.class, ChatSyncRequestPacket.class, 3, Side.SERVER);
