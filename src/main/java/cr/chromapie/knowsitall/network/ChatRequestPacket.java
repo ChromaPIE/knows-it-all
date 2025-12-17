@@ -85,7 +85,7 @@ public class ChatRequestPacket implements IMessage {
 
                     StringBuilder toolHint = new StringBuilder();
                     for (ToolRegistry.ToolCall call : toolCalls) {
-                        if (toolHint.length() > 0) toolHint.append(", ");
+                        if (!toolHint.isEmpty()) toolHint.append(", ");
                         toolHint.append(call.name);
                         if (call.args.length > 0) {
                             toolHint.append("(")
@@ -93,7 +93,7 @@ public class ChatRequestPacket implements IMessage {
                                 .append(")");
                         }
                     }
-                    String hintText = "Using tools: " + toolHint.toString() + "...";
+                    String hintText = "Using tools: " + toolHint + "...";
                     ConversationManager.addToolHint(player.getUniqueID(), hintText);
                     sendResponse(player, hintText, ChatResponsePacket.TYPE_TOOL_HINT);
 
@@ -118,8 +118,8 @@ public class ChatRequestPacket implements IMessage {
         }
 
         private void sendResponse(EntityPlayerMP player, String content, int messageType) {
-            ServerScheduler.schedule(
-                () -> { PacketHandler.INSTANCE.sendTo(new ChatResponsePacket(content, messageType), player); });
+            ServerScheduler
+                .schedule(() -> PacketHandler.INSTANCE.sendTo(new ChatResponsePacket(content, messageType), player));
         }
     }
 }

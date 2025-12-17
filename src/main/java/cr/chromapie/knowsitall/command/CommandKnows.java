@@ -4,29 +4,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import net.minecraft.block.Block;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.util.EnumChatFormatting;
-import net.minecraft.world.World;
 
-import cpw.mods.fml.common.registry.GameRegistry;
 import cr.chromapie.knowsitall.ModConfig;
 import cr.chromapie.knowsitall.api.ConversationManager;
-import cr.chromapie.knowsitall.api.OpenAIClient;
-import cr.chromapie.knowsitall.context.ContextCollector;
 import cr.chromapie.knowsitall.knowledge.KnowledgeBase;
 import cr.chromapie.knowsitall.knowledge.KnowledgeEntry;
-import cr.chromapie.knowsitall.tool.ToolRegistry;
 import cr.chromapie.knowsitall.ui.ChatScreen;
 import cr.chromapie.knowsitall.util.ChatFormatter;
 import cr.chromapie.knowsitall.util.ServerScheduler;
-import cr.chromapie.knowsitall.util.WorldDataReader;
 
 public class CommandKnows extends CommandBase {
 
-    private static final String[] SUBCOMMANDS = { "ask", "chat", "config", "kb", "query", "clear", "help" };
+    private static final String[] SUBCOMMANDS = { "config", "kb", "clear", "help" };
     private static final String[] CONFIG_OPTIONS = { "url", "key", "model", "reload" };
     private static final String[] KB_OPTIONS = { "list", "rename", "remove", "clear", "info" };
 
@@ -37,7 +29,7 @@ public class CommandKnows extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/knows <question> OR /knows <ask|config|kb|query|help> [args...]";
+        return "/knows <config|kb|clear|help>";
     }
 
     @Override
@@ -69,132 +61,28 @@ public class CommandKnows extends CommandBase {
             case "knowledge":
                 handleKnowledgeBase(sender, subArgs);
                 break;
-            case "query":
-            case "q":
-                handleQuery(sender, subArgs, false);
-                break;
-            case "queryforce":
-            case "qf":
-                handleQuery(sender, subArgs, true);
-                break;
             case "clear":
                 handleClear(sender);
-                break;
-            case "chat":
-            case "gui":
-                handleOpenChat(sender);
                 break;
             case "help":
             case "?":
                 showHelp(sender);
                 break;
-            case "ask":
-                handleAsk(sender, subArgs);
-                break;
             default:
-                handleAsk(sender, args);
-        }
-    }
-
-    private void handleAsk(ICommandSender sender, String[] args) {
-        if (args.length == 0) {
-            ChatFormatter.error(sender, "Usage: /knows <your question>");
-            return;
-        }
-
-        if (!ModConfig.isConfigured()) {
-            ChatFormatter.error(sender, "API not configured!");
-            ChatFormatter.info(sender, "Use /knows config key <your-api-key>");
-            return;
-        }
-
-        if (!(sender instanceof EntityPlayerMP)) {
-            ChatFormatter.error(sender, "This command requires a player.");
-            return;
-        }
-
-        EntityPlayerMP player = (EntityPlayerMP) sender;
-        String question = String.join(" ", args);
-
-        String context = ContextCollector.buildContextString(player, true, true, ModConfig.getDefaultScanRange());
-
-        ChatFormatter.userMessage(sender, question);
-        ChatFormatter.thinking(sender);
-
-        final EntityPlayerMP finalPlayer = player;
-
-        OpenAIClient.chat(
-            player.getUniqueID(),
-            question,
-            context,
-            response -> { processResponse(sender, finalPlayer, response, 0); },
-            error -> {
-                ServerScheduler.schedule(() -> {
-                    ChatFormatter.clearActionBar(sender);
-                    ChatFormatter.error(sender, error);
-                });
-            });
-    }
-
-    private static final int MAX_TOOL_ITERATIONS = 5;
-
-    private void processResponse(ICommandSender sender, EntityPlayerMP player, String response, int iteration) {
-        List<ToolRegistry.ToolCall> toolCalls = ToolRegistry.parseToolCalls(response);
-        if (!toolCalls.isEmpty() && iteration < MAX_TOOL_ITERATIONS) {
-            ServerScheduler.schedule(() -> {
-                String cleanResponse = ToolRegistry.cleanResponse(response);
-                if (!cleanResponse.isEmpty()) {
-                    ChatFormatter.clearActionBar(sender);
-                    ChatFormatter.aiResponse(sender, cleanResponse);
-                }
-                String toolInfo = toolCalls.stream()
-                    .map(tc -> tc.name + (tc.args.length > 0 ? ":" + tc.args[0] : ""))
-                    .collect(java.util.stream.Collectors.joining(", "));
-                ChatFormatter.sendRaw(
-                    sender,
-                    EnumChatFormatting.DARK_GRAY + "  ⚙ "
-                        + toolInfo
-                        + (iteration > 0 ? "§7 (" + (iteration + 1) + ")" : ""));
-                ChatFormatter.thinking(sender);
-                String toolResults = ToolRegistry.executeTools(player, toolCalls);
-
-                OpenAIClient.continueWithToolResult(
-                    player.getUniqueID(),
-                    toolResults,
-                    followUp -> { processResponse(sender, player, followUp, iteration + 1); },
-                    err -> {
-                        ServerScheduler.schedule(() -> {
-                            ChatFormatter.clearActionBar(sender);
-                            ChatFormatter.error(sender, err);
-                        });
-                    });
-            });
-        } else {
-            ServerScheduler.schedule(() -> {
-                ChatFormatter.clearActionBar(sender);
-                ChatFormatter.aiResponse(sender, response);
-            });
+                ChatFormatter.error(sender, "Unknown command: " + subCommand);
+                showHelp(sender);
         }
     }
 
     private void handleClear(ICommandSender sender) {
-        if (!(sender instanceof EntityPlayerMP)) {
+        if (!(sender instanceof EntityPlayerMP player)) {
             ChatFormatter.error(sender, "Requires player.");
             return;
         }
-        EntityPlayerMP player = (EntityPlayerMP) sender;
         int count = ConversationManager.getMessageCount(player.getUniqueID());
         ConversationManager.clear(player.getUniqueID());
         ServerScheduler.scheduleClient(ChatScreen::clearMessages);
         ChatFormatter.success(sender, "Cleared " + count + " messages from history.");
-    }
-
-    private void handleOpenChat(ICommandSender sender) {
-        if (!(sender instanceof EntityPlayerMP)) {
-            ChatFormatter.error(sender, "Requires player.");
-            return;
-        }
-        ServerScheduler.scheduleClient(ChatScreen::open);
     }
 
     private void handleConfig(ICommandSender sender, String[] args) {
@@ -353,69 +241,6 @@ public class CommandKnows extends CommandBase {
         ChatFormatter.success(sender, "Cleared " + count + " entries.");
     }
 
-    private void handleQuery(ICommandSender sender, String[] args, boolean force) {
-        if (args.length == 0) {
-            ChatFormatter.error(sender, "Usage: /knows query <id> [question]");
-            return;
-        }
-
-        if (!ModConfig.isConfigured()) {
-            ChatFormatter.error(sender, "API not configured!");
-            return;
-        }
-
-        String idOrName = args[0];
-        KnowledgeEntry entry = KnowledgeBase.get(idOrName);
-        if (entry == null) entry = KnowledgeBase.findByName(idOrName);
-
-        if (entry == null) {
-            ChatFormatter.error(sender, "Not found: " + idOrName);
-            return;
-        }
-
-        if (!(sender instanceof EntityPlayerMP)) {
-            ChatFormatter.error(sender, "Requires player.");
-            return;
-        }
-
-        EntityPlayerMP player = (EntityPlayerMP) sender;
-        World world = player.worldObj;
-
-        Block currentBlock = world.getBlock(entry.getX(), entry.getY(), entry.getZ());
-        GameRegistry.UniqueIdentifier uid = GameRegistry.findUniqueIdentifierFor(currentBlock);
-        String currentBlockId = uid != null ? uid.toString() : currentBlock.getUnlocalizedName();
-
-        if (!entry.getBlockId()
-            .equals(currentBlockId) && !force) {
-            if (ModConfig.shouldPromptOnMismatch()) {
-                ChatFormatter.warning(sender, "Block mismatch: " + entry.getName());
-                ChatFormatter.listItem(sender, "Was", entry.getBlockId());
-                ChatFormatter.listItem(sender, "Now", currentBlockId);
-                ChatFormatter.info(sender, "/knows kb remove " + entry.getId());
-                ChatFormatter.info(sender, "/knows qf " + entry.getId() + " - force");
-                return;
-            } else {
-                ChatFormatter.warning(sender, "Auto-removed: " + entry.getName());
-                KnowledgeBase.remove(entry.getId());
-                return;
-            }
-        }
-
-        String blockData = WorldDataReader.getFullDataForAI(world, entry.getX(), entry.getY(), entry.getZ());
-        String question = args.length > 1 ? String.join(" ", Arrays.copyOfRange(args, 1, args.length))
-            : "Analyze this block and summarize its contents/status.";
-
-        ChatFormatter.thinking(sender);
-
-        final KnowledgeEntry fe = entry;
-        OpenAIClient.chat(player.getUniqueID(), question, blockData, response -> {
-            ServerScheduler.schedule(() -> {
-                ChatFormatter.info(sender, "Re: " + fe.getName());
-                ChatFormatter.aiResponse(sender, response);
-            });
-        }, error -> { ServerScheduler.schedule(() -> ChatFormatter.error(sender, error)); });
-    }
-
     private void showCurrentConfig(ICommandSender sender) {
         ChatFormatter.header(sender, "Configuration");
         ChatFormatter.listItem(sender, "API URL", ModConfig.getApiUrl());
@@ -430,8 +255,7 @@ public class CommandKnows extends CommandBase {
 
     private void showHelp(ICommandSender sender) {
         ChatFormatter.header(sender, "Knows It All");
-        ChatFormatter.commandHelp(sender, "/knows <question>", "Ask anything (auto-context)");
-        ChatFormatter.commandHelp(sender, "/knows query <id>", "Query bookmarked block");
+        ChatFormatter.commandHelp(sender, "Ctrl+K", "Open chat interface");
         ChatFormatter.commandHelp(sender, "/knows kb", "Manage bookmarks");
         ChatFormatter.commandHelp(sender, "/knows clear", "Clear conversation history");
         ChatFormatter.commandHelp(sender, "/knows config", "API settings");
@@ -450,9 +274,6 @@ public class CommandKnows extends CommandBase {
             }
             if (sub.equals("kb") || sub.equals("knowledge")) {
                 return getListOfStringsMatchingLastWord(args, KB_OPTIONS);
-            }
-            if (sub.equals("query") || sub.equals("q") || sub.equals("qf")) {
-                return getKnowledgeEntryIds(args);
             }
         }
 

@@ -23,13 +23,15 @@ public final class SystemPrompt {
 
         sb.append("§e§l=== TOOLS ===§r\n");
         sb.append("Output [TOOL:name:args] to gather data. System executes and returns results.\n");
+        sb.append("§c§lCRITICAL: When you decide to use a tool, include [TOOL:...] IN THE SAME MESSAGE.§f\n");
+        sb.append("§c§lNEVER say 'let me search' without the tool call. ALWAYS include the tool call immediately.§f\n");
         sb.append("§7[TOOL:scan:filter:range]§r - Scan blocks in sphere (range 1-16)\n");
         sb.append("§7[TOOL:container:x:y:z]§r - Get container inventory at coordinates\n");
         sb.append("§7[TOOL:block:x:y:z]§r - Get full block/TileEntity data at coordinates\n");
         sb.append("§7[TOOL:kb:id]§r - Query knowledge base entry by ID\n");
         sb.append("§7[TOOL:kb:list]§r - List all knowledge base entries\n");
         sb.append("§7[TOOL:kb_add:x:y:z:name]§r - Add block at coords to KB with custom name\n");
-        sb.append("§7[TOOL:item_search:query]§r - Search items by name (NOT for recipes)\n");
+        sb.append("§7[TOOL:item_search:query]§r - Search items by name (fuzzy word match, case-insensitive)\n");
         sb.append("§7[TOOL:recipe:item]§r - Get recipes for item\n");
         sb.append("§7[TOOL:recipe:item:handler]§r - Get recipes filtered by handler (furnace, assembler, etc.)\n");
         sb.append("§7[TOOL:kb_note:topic:content]§r - Save learned info to KB\n");
@@ -42,8 +44,19 @@ public final class SystemPrompt {
         sb.append("§e§l=== RECIPE QUERIES ===§r\n");
         sb.append("§c§lNEVER§r answer recipe questions from memory - ALWAYS use [TOOL:recipe:item]!\n");
         sb.append("Tool returns actual recipe data. Present it clearly to user.\n");
-        sb.append("If many recipes: summarize handlers, user can ask for specific handler.\n");
-        sb.append("Use recipe:item:handler to filter (e.g., recipe:iron ingot:furnace).\n\n");
+        sb.append("When tool output contains §c[ACTION]§f, you MUST follow the instruction.\n");
+        sb.append("Typically: list available handlers naturally, ask user which one to see.\n");
+        sb.append("After user chooses, call recipe:item:handler to get details.\n");
+        sb.append("§e§lPriority:§f Focus on §aPRODUCTION§f recipes (mixing, smelting, crafting new items).\n");
+        sb.append("De-emphasize: recycling (macerating ingots), form conversion (block↔ingot↔nugget).\n");
+        sb.append("Unless user specifically asks for recycling/conversion recipes.\n\n");
+
+        sb.append("§e§l=== RESPONSE RULES ===§r\n");
+        sb.append("§c§lANY statement about needing/wanting to do something MUST include the action.§f\n");
+        sb.append("Patterns that REQUIRE immediate tool call: 'need to...', 'let me...', 'I will...', 'now I'll...'\n");
+        sb.append("§c§lBAD:§f 'Need the dust recipe now.' (no tool) → user waits, nothing happens\n");
+        sb.append("§a§lGOOD:§f 'Need the dust recipe. [TOOL:recipe:dust]' → tool executes immediately\n");
+        sb.append("If you express intent to act, ACT in the same message. No exceptions.\n\n");
 
         sb.append("§e§l=== CONTEXT PROVIDED ===§r\n");
         sb.append("- Player position, dimension, held item\n");

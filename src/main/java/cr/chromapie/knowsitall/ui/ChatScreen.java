@@ -23,6 +23,7 @@ import com.cleanroommc.modularui.widgets.layout.Row;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import cr.chromapie.knowsitall.KnowsItAll;
+import cr.chromapie.knowsitall.api.ChatMessage;
 import cr.chromapie.knowsitall.network.ChatRequestPacket;
 import cr.chromapie.knowsitall.network.ChatResponsePacket;
 import cr.chromapie.knowsitall.network.ChatSyncRequestPacket;
@@ -40,9 +41,10 @@ public class ChatScreen extends CustomModularScreen {
     private static final int AI_MSG_BG = Color.argb(70, 50, 90, 230);
     private static final int INPUT_BG = Color.argb(40, 40, 50, 200);
 
-    private static final List<ChatMessage> messages = new ArrayList<>();
+    private static final List<DisplayMessage> messages = new ArrayList<>();
     private ListWidget<Widget<?>, ?> messageList;
     private MultiLineInput inputField;
+    private TextWidget emptyPlaceholder;
 
     public ChatScreen() {
         super(KnowsItAll.MODID);
@@ -61,6 +63,13 @@ public class ChatScreen extends CustomModularScreen {
             .bottom(50);
         messageList.background(new Rectangle().setColor(MSG_AREA_BG));
         messageList.padding(4);
+
+        emptyPlaceholder = new TextWidget(IKey.str("§7§l§oWhat can I help you with today?"));
+        emptyPlaceholder.left(6)
+            .right(6)
+            .top(6)
+            .bottom(50);
+        emptyPlaceholder.alignment(Alignment.Center);
 
         inputField = new MultiLineInput();
         inputField.height(38);
@@ -86,11 +95,14 @@ public class ChatScreen extends CustomModularScreen {
             .child(sendBtn);
 
         panel.child(messageList);
+        panel.child(emptyPlaceholder);
         panel.child(inputRow);
 
-        for (ChatMessage msg : messages) {
+        for (DisplayMessage msg : messages) {
             messageList.child(createMessageWidget(msg));
         }
+
+        updatePlaceholderVisibility();
 
         return panel;
     }
@@ -103,46 +115,79 @@ public class ChatScreen extends CustomModularScreen {
             .trim();
         if (text.isEmpty()) return;
 
-        addMessage(new ChatMessage(ChatMessage.Role.USER, text));
+        addMessage(new DisplayMessage(DisplayMessage.Role.USER, text));
         inputField.clear();
         PacketHandler.INSTANCE.sendToServer(new ChatRequestPacket(text));
     }
 
     public static void receiveResponse(String content, int messageType) {
         if (instance != null) {
-            ChatMessage.Role role;
-            String formattedContent;
-            switch (messageType) {
-                case ChatResponsePacket.TYPE_ERROR:
-                    role = ChatMessage.Role.SYSTEM;
-                    formattedContent = "§c" + content;
-                    break;
-                case ChatResponsePacket.TYPE_TOOL_HINT:
-                    role = ChatMessage.Role.TOOL_HINT;
-                    formattedContent = "§7§o" + content;
-                    break;
-                default:
-                    role = ChatMessage.Role.ASSISTANT;
-                    formattedContent = content;
-                    break;
-            }
-            instance.addMessage(new ChatMessage(role, formattedContent));
+            DisplayMessage.Role role;
+            String formattedContent = switch (messageType) {
+                case ChatResponsePacket.TYPE_ERROR -> {
+                    role = DisplayMessage.Role.SYSTEM;
+                    yield "§c" + content;
+                }
+                case ChatResponsePacket.TYPE_TOOL_HINT -> {
+                    role = DisplayMessage.Role.TOOL_HINT;
+                    yield "§7§o" + content;
+                }
+                default -> {
+                    role = DisplayMessage.Role.ASSISTANT;
+                    yield content;
+                }
+            };
+            instance.addMessage(new DisplayMessage(role, formattedContent));
         }
     }
 
-    public void addMessage(ChatMessage msg) {
+    public void addMessage(DisplayMessage msg) {
         messages.add(msg);
         if (messageList != null && messageList.isValid()) {
+            boolean wasAtBottom = isScrolledToBottom();
             messageList.child(createMessageWidget(msg));
+            updatePlaceholderVisibility();
+            if (wasAtBottom) {
+                scrollToBottom();
+            }
+        }
+    }
+
+    private boolean isScrolledToBottom() {
+        if (messageList == null || !messageList.isValid()) return true;
+        var scrollData = messageList.getScrollData();
+        var scrollArea = messageList.getScrollArea();
+        if (scrollData == null || scrollArea == null) return true;
+        int scroll = scrollData.getScroll();
+        int scrollSize = scrollData.getScrollSize();
+        int visibleSize = scrollData.getFullVisibleSize(scrollArea);
+        int maxScroll = Math.max(0, scrollSize - visibleSize);
+        return scroll >= maxScroll - 5;
+    }
+
+    private void scrollToBottom() {
+        if (messageList == null || !messageList.isValid()) return;
+        var scrollData = messageList.getScrollData();
+        var scrollArea = messageList.getScrollArea();
+        if (scrollData == null || scrollArea == null) return;
+        int scrollSize = scrollData.getScrollSize();
+        int visibleSize = scrollData.getFullVisibleSize(scrollArea);
+        int targetScroll = Math.max(0, scrollSize - visibleSize);
+        scrollData.scrollTo(scrollArea, targetScroll);
+    }
+
+    private void updatePlaceholderVisibility() {
+        if (emptyPlaceholder != null) {
+            emptyPlaceholder.setEnabled(messages.isEmpty());
         }
     }
 
     private static final int LABEL_WIDTH = 42;
 
-    private Widget<?> createMessageWidget(ChatMessage msg) {
-        boolean isUser = msg.role == ChatMessage.Role.USER;
-        boolean isError = msg.role == ChatMessage.Role.SYSTEM;
-        boolean isToolHint = msg.role == ChatMessage.Role.TOOL_HINT;
+    private Widget<?> createMessageWidget(DisplayMessage msg) {
+        boolean isUser = msg.role == DisplayMessage.Role.USER;
+        boolean isError = msg.role == DisplayMessage.Role.SYSTEM;
+        boolean isToolHint = msg.role == DisplayMessage.Role.TOOL_HINT;
 
         if (isToolHint) {
             TextWidget spacer = new TextWidget(IKey.str(""));
@@ -228,36 +273,39 @@ public class ChatScreen extends CustomModularScreen {
         if (instance != null && instance.messageList != null) {
             instance.messageList.getChildren()
                 .clear();
+            instance.updatePlaceholderVisibility();
         }
     }
 
-    public static void syncMessages(java.util.List<cr.chromapie.knowsitall.api.ChatMessage> history) {
+    public static void syncMessages(List<ChatMessage> history) {
         messages.clear();
-        for (cr.chromapie.knowsitall.api.ChatMessage msg : history) {
+        for (ChatMessage msg : history) {
             if (!msg.isDisplayable()) {
                 continue;
             }
-            ChatMessage.Role role;
+            DisplayMessage.Role role;
             if (msg.isToolHint()) {
-                role = ChatMessage.Role.TOOL_HINT;
+                role = DisplayMessage.Role.TOOL_HINT;
             } else if ("user".equals(msg.getRole())) {
-                role = ChatMessage.Role.USER;
+                role = DisplayMessage.Role.USER;
             } else {
-                role = ChatMessage.Role.ASSISTANT;
+                role = DisplayMessage.Role.ASSISTANT;
             }
             String content = msg.isToolHint() ? "§7§o" + msg.getContent() : msg.getContent();
-            messages.add(new ChatMessage(role, content));
+            messages.add(new DisplayMessage(role, content));
         }
         if (instance != null && instance.messageList != null) {
             instance.messageList.getChildren()
                 .clear();
-            for (ChatMessage msg : messages) {
+            for (DisplayMessage msg : messages) {
                 instance.messageList.child(instance.createMessageWidget(msg));
             }
+            instance.updatePlaceholderVisibility();
+            instance.scrollToBottom();
         }
     }
 
-    public static class ChatMessage {
+    public record DisplayMessage(Role role, String content) {
 
         public enum Role {
             USER,
@@ -266,12 +314,5 @@ public class ChatScreen extends CustomModularScreen {
             TOOL_HINT
         }
 
-        public final Role role;
-        public final String content;
-
-        public ChatMessage(Role role, String content) {
-            this.role = role;
-            this.content = content;
-        }
     }
 }

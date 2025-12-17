@@ -97,7 +97,7 @@ public class ItemMarkerWand extends Item {
         ChatFormatter.listItem(player, "ID", entry.getId());
         ChatFormatter.listItem(player, "Block", entry.getBlockId());
         ChatFormatter.listItem(player, "Location", entry.getLocationString());
-        ChatFormatter.info(player, "Use /knows query " + entry.getId() + " to ask AI.");
+        ChatFormatter.info(player, "Use Ctrl+K to open chat and ask AI.");
     }
 
     @Override

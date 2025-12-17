@@ -11,7 +11,6 @@ import net.minecraft.client.gui.GuiScreen;
 import org.jetbrains.annotations.NotNull;
 import org.lwjgl.input.Keyboard;
 
-import com.cleanroommc.modularui.api.UpOrDown;
 import com.cleanroommc.modularui.api.widget.IFocusedWidget;
 import com.cleanroommc.modularui.api.widget.Interactable;
 import com.cleanroommc.modularui.drawable.GuiDraw;
@@ -32,8 +31,8 @@ public class MultiLineInput extends Widget<MultiLineInput> implements Interactab
     private int scrollOffset = 0;
     private int maxLength = 500;
     private int textColor = Color.WHITE.main;
-    private int cursorColor = Color.WHITE.main;
-    private int selectionColor = Color.argb(80, 100, 150, 180);
+    private final int cursorColor = Color.WHITE.main;
+    private final int selectionColor = Color.argb(80, 100, 150, 180);
     private Consumer<String> onEnter;
     private long cursorBlinkTime = 0;
     private boolean focused = false;
@@ -208,7 +207,7 @@ public class MultiLineInput extends Widget<MultiLineInput> implements Interactab
                 }
             }
         }
-        if (currentLine.length() > 0) {
+        if (!currentLine.isEmpty()) {
             lines.add(currentLine.toString());
         }
         return lines;
@@ -319,12 +318,10 @@ public class MultiLineInput extends Widget<MultiLineInput> implements Interactab
 
         if (Interactable.isKeyComboCtrlV(keyCode)) {
             String clipboard = GuiScreen.getClipboardString();
-            if (clipboard != null) {
-                if (hasSelection()) deleteSelection();
-                insertText(
-                    clipboard.replace("\n", " ")
-                        .replace("\r", ""));
-            }
+            if (hasSelection()) deleteSelection();
+            insertText(
+                clipboard.replace("\n", " ")
+                    .replace("\r", ""));
             return Result.SUCCESS;
         }
 
@@ -367,71 +364,14 @@ public class MultiLineInput extends Widget<MultiLineInput> implements Interactab
 
     @Override
     public @NotNull Result onMousePressed(int mouseButton) {
-        if (isHovering()) {
+        if (mouseButton == 0) {
             if (!isFocused()) getContext().focus(this);
             cursorBlinkTime = System.currentTimeMillis();
-            cursorPos = getPositionFromMouse();
-            selectionStart = cursorPos;
+            cursorPos = text.length();
+            selectionStart = -1;
             return Result.SUCCESS;
         }
         return Result.IGNORE;
-    }
-
-    @Override
-    public boolean onMouseRelease(int mouseButton) {
-        if (selectionStart == cursorPos) selectionStart = -1;
-        return true;
-    }
-
-    @Override
-    public void onMouseDrag(int mouseButton, long timeSinceClick) {
-        if (isFocused()) {
-            cursorPos = getPositionFromMouse();
-            cursorBlinkTime = System.currentTimeMillis();
-        }
-    }
-
-    @Override
-    public boolean onMouseScroll(UpOrDown scrollDirection, int amount) {
-        if (isHovering() && cachedLines.size() > 1) {
-            scrollOffset = Math
-                .max(0, Math.min(scrollOffset + (scrollDirection == UpOrDown.UP ? -1 : 1), cachedLines.size() - 1));
-            return true;
-        }
-        return false;
-    }
-
-    private int getPositionFromMouse() {
-        FontRenderer font = Minecraft.getMinecraft().fontRenderer;
-        int areaWidth = getArea().width - getArea().getPadding()
-            .horizontal();
-        int padLeft = getArea().getPadding()
-            .getLeft();
-        int padTop = getArea().getPadding()
-            .getTop();
-        int lineHeight = font.FONT_HEIGHT + 1;
-
-        updateCache(areaWidth, font);
-
-        int mx = getContext().getMouseX() - padLeft;
-        int my = getContext().getMouseY() - padTop;
-        int lineIdx = Math.max(0, Math.min(scrollOffset + my / lineHeight, cachedLines.size() - 1));
-
-        if (cachedLines.isEmpty()) return 0;
-
-        String line = cachedLines.get(lineIdx);
-        int col = 0;
-        for (int i = 0; i <= line.length(); i++) {
-            if (font.getStringWidth(line.substring(0, i)) >= mx) {
-                col = i > 0
-                    && mx < font.getStringWidth(line.substring(0, i)) - font.getCharWidth(line.charAt(i - 1)) / 2
-                        ? i - 1
-                        : i;
-                break;
-            }
-            col = i;
-        }
-        return getPosFromLineCol(lineIdx, col);
     }
 
     @Override
@@ -443,6 +383,7 @@ public class MultiLineInput extends Widget<MultiLineInput> implements Interactab
     @Override
     public void onRemoveFocus(ModularGuiContext context) {
         focused = false;
+        selectionStart = -1;
     }
 
     @Override

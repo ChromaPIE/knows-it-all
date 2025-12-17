@@ -15,6 +15,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
+import org.jetbrains.annotations.NotNull;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -169,19 +171,7 @@ public class OpenAIClient {
             conn.setReadTimeout(READ_TIMEOUT);
             conn.setDoOutput(true);
 
-            try (OutputStream os = conn.getOutputStream()) {
-                byte[] input = jsonRequest.getBytes(StandardCharsets.UTF_8);
-                os.write(input, 0, input.length);
-            }
-
-            int responseCode = conn.getResponseCode();
-            BufferedReader reader;
-
-            if (responseCode >= 200 && responseCode < 300) {
-                reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
-            } else {
-                reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8));
-            }
+            BufferedReader reader = getBufferedReader(conn, jsonRequest);
 
             StringBuilder response = new StringBuilder();
             String line;
@@ -205,6 +195,24 @@ public class OpenAIClient {
         } finally {
             conn.disconnect();
         }
+    }
+
+    private static @NotNull BufferedReader getBufferedReader(HttpURLConnection conn, String jsonRequest)
+        throws IOException {
+        try (OutputStream os = conn.getOutputStream()) {
+            byte[] input = jsonRequest.getBytes(StandardCharsets.UTF_8);
+            os.write(input, 0, input.length);
+        }
+
+        int responseCode = conn.getResponseCode();
+        BufferedReader reader;
+
+        if (responseCode >= 200 && responseCode < 300) {
+            reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+        } else {
+            reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8));
+        }
+        return reader;
     }
 
     public static void shutdown() {

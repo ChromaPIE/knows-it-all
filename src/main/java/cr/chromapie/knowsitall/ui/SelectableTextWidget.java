@@ -1,6 +1,5 @@
 package cr.chromapie.knowsitall.ui;
 
-import java.awt.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -11,7 +10,6 @@ import net.minecraft.client.gui.GuiScreen;
 import com.cleanroommc.modularui.api.drawable.IKey;
 import com.cleanroommc.modularui.api.widget.IFocusedWidget;
 import com.cleanroommc.modularui.api.widget.Interactable;
-import com.cleanroommc.modularui.api.widget.Interactable.Result;
 import com.cleanroommc.modularui.drawable.text.TextRenderer;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetTheme;
@@ -38,10 +36,7 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
     private int siblingWidth = 0;
 
     private List<String> lines = new ArrayList<>();
-    private final Point selStart = new Point();
-    private final Point selEnd = new Point();
-    private boolean hasSelection = false;
-    private boolean isDragging = false;
+    private boolean selectAll = false;
 
     public SelectableTextWidget(IKey key) {
         this.key = key;
@@ -82,8 +77,8 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
         renderer.setScale(this.scale);
         renderer.setSimulate(false);
 
-        if (hasSelection && isFocused()) {
-            drawSelection(renderer, padding);
+        if (selectAll && isFocused()) {
+            drawFullSelection(renderer, padding);
         }
 
         renderer.draw(this.lines);
@@ -106,12 +101,7 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
         return Math.max(50, baseWidth - this.siblingWidth - padding.horizontal());
     }
 
-    private void drawSelection(TextRenderer renderer, Box padding) {
-        Point start = getSelectionStart();
-        Point end = getSelectionEnd();
-
-        if (start.equals(end)) return;
-
+    private void drawFullSelection(TextRenderer renderer, Box padding) {
         renderer.setSimulate(true);
         renderer.draw(this.lines);
         renderer.setSimulate(false);
@@ -119,27 +109,17 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
         float fontHeight = 9 * this.scale;
         float startY = padding.getTop();
 
-        for (int lineIdx = start.y; lineIdx <= end.y && lineIdx < this.lines.size(); lineIdx++) {
+        for (int lineIdx = 0; lineIdx < this.lines.size(); lineIdx++) {
             String line = this.lines.get(lineIdx);
             float lineY = startY + lineIdx * fontHeight;
 
-            int charStart = (lineIdx == start.y) ? start.x : 0;
-            int charEnd = (lineIdx == end.y) ? end.x : line.length();
+            String visibleLine = getVisibleText(line);
+            float lineWidth = TextRenderer.getFontRenderer()
+                .getStringWidth(visibleLine) * this.scale;
 
-            charStart = Math.min(charStart, line.length());
-            charEnd = Math.min(charEnd, line.length());
-
-            if (charStart >= charEnd && lineIdx == start.y && lineIdx == end.y) continue;
-
-            String beforeSel = getVisibleText(line.substring(0, charStart));
-            String selected = getVisibleText(line.substring(0, charEnd));
-
-            float x0 = padding.getLeft() + renderer.getFontRenderer()
-                .getStringWidth(beforeSel) * this.scale;
-            float x1 = padding.getLeft() + renderer.getFontRenderer()
-                .getStringWidth(selected) * this.scale;
-
-            drawSelectionRect(x0, lineY - 1, x1, lineY + fontHeight - 1);
+            if (lineWidth > 0) {
+                drawSelectionRect(padding.getLeft(), lineY - 1, padding.getLeft() + lineWidth, lineY + fontHeight - 1);
+            }
         }
     }
 
@@ -151,7 +131,7 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
                 skipNext = false;
                 continue;
             }
-            if (c == '\u00A7') {
+            if (c == '§') {
                 skipNext = true;
                 continue;
             }
@@ -198,7 +178,7 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
                 totalVisualLines++;
                 continue;
             }
-            List<String> wrappedLines = renderer.getFontRenderer()
+            List<String> wrappedLines = TextRenderer.getFontRenderer()
                 .listFormattedStringToWidth(line, wrapWidth);
             totalVisualLines += Math.max(1, wrappedLines.size());
         }
@@ -210,113 +190,22 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
     public int getDefaultWidth() {
         updateLines();
         Box padding = getArea().getPadding();
-        TextRenderer renderer = TextRenderer.SHARED;
         float maxW = 0;
         for (String line : this.lines) {
-            float w = renderer.getFontRenderer()
+            float w = TextRenderer.getFontRenderer()
                 .getStringWidth(line) * this.scale;
             if (w > maxW) maxW = w;
         }
         return (int) Math.ceil(maxW + padding.horizontal());
     }
 
-    private Point getCursorPosFromMouse(int mouseX, int mouseY) {
-        Box padding = getArea().getPadding();
-        TextRenderer renderer = TextRenderer.SHARED;
-
-        float fontHeight = 9 * this.scale;
-        int relY = mouseY - padding.getTop();
-        int lineIdx = (int) (relY / fontHeight);
-        lineIdx = Math.max(0, Math.min(lineIdx, this.lines.size() - 1));
-
-        String line = this.lines.get(lineIdx);
-        int relX = mouseX - padding.getLeft();
-
-        int charIdx = 0;
-        float currentX = 0;
-        String visibleLine = "";
-        boolean skipNext = false;
-
-        for (int i = 0; i < line.length(); i++) {
-            char c = line.charAt(i);
-            if (skipNext) {
-                skipNext = false;
-                continue;
-            }
-            if (c == '\u00A7') {
-                skipNext = true;
-                continue;
-            }
-            visibleLine += c;
-            float newX = renderer.getFontRenderer()
-                .getStringWidth(visibleLine) * this.scale;
-            if (newX > relX) {
-                if (relX - currentX < newX - relX) {
-                    break;
-                }
-                charIdx++;
-                break;
-            }
-            currentX = newX;
-            charIdx++;
-        }
-
-        int actualCharIdx = 0;
-        int visibleCount = 0;
-        skipNext = false;
-        for (int i = 0; i < line.length() && visibleCount < charIdx; i++) {
-            char c = line.charAt(i);
-            if (skipNext) {
-                skipNext = false;
-                actualCharIdx = i + 1;
-                continue;
-            }
-            if (c == '\u00A7') {
-                skipNext = true;
-                actualCharIdx = i;
-                continue;
-            }
-            visibleCount++;
-            actualCharIdx = i + 1;
-        }
-
-        return new Point(Math.min(actualCharIdx, line.length()), lineIdx);
-    }
-
     @Override
     public Result onMousePressed(int mouseButton) {
-        if (!isHovering()) {
-            return Result.IGNORE;
-        }
-
         if (mouseButton == 0) {
-            int x = getContext().getMouseX() - getArea().x;
-            int y = getContext().getMouseY() - getArea().y;
-            Point pos = getCursorPosFromMouse(x, y);
-            selStart.setLocation(pos);
-            selEnd.setLocation(pos);
-            hasSelection = false;
-            isDragging = true;
+            getContext().focus(this);
             return Result.SUCCESS;
         }
         return Result.IGNORE;
-    }
-
-    @Override
-    public void onMouseDrag(int mouseButton, long timeSinceClick) {
-        if (isDragging && isFocused()) {
-            int x = getContext().getMouseX() - getArea().x;
-            int y = getContext().getMouseY() - getArea().y;
-            Point pos = getCursorPosFromMouse(x, y);
-            selEnd.setLocation(pos);
-            hasSelection = !selStart.equals(selEnd);
-        }
-    }
-
-    @Override
-    public boolean onMouseRelease(int mouseButton) {
-        isDragging = false;
-        return true;
     }
 
     @Override
@@ -326,71 +215,25 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
         }
 
         if (Interactable.isKeyComboCtrlC(keyCode)) {
-            String selected = getSelectedText();
-            if (!selected.isEmpty()) {
-                GuiScreen.setClipboardString(selected);
+            if (selectAll) {
+                GuiScreen.setClipboardString(getAllText());
             }
             return Result.SUCCESS;
         }
 
         if (Interactable.isKeyComboCtrlA(keyCode)) {
-            selectAll();
+            selectAll = true;
             return Result.SUCCESS;
         }
 
         return Result.IGNORE;
     }
 
-    public void selectAll() {
-        if (this.lines.isEmpty()) return;
-        selStart.setLocation(0, 0);
-        int lastLine = this.lines.size() - 1;
-        selEnd.setLocation(
-            this.lines.get(lastLine)
-                .length(),
-            lastLine);
-        hasSelection = true;
-    }
-
-    private Point getSelectionStart() {
-        if (selStart.y < selEnd.y || (selStart.y == selEnd.y && selStart.x <= selEnd.x)) {
-            return selStart;
-        }
-        return selEnd;
-    }
-
-    private Point getSelectionEnd() {
-        if (selStart.y < selEnd.y || (selStart.y == selEnd.y && selStart.x <= selEnd.x)) {
-            return selEnd;
-        }
-        return selStart;
-    }
-
-    public String getSelectedText() {
-        if (!hasSelection) return "";
-
-        Point start = getSelectionStart();
-        Point end = getSelectionEnd();
-
-        if (start.y == end.y) {
-            String line = this.lines.get(start.y);
-            int s = Math.min(start.x, line.length());
-            int e = Math.min(end.x, line.length());
-            return line.substring(s, e);
-        }
-
+    private String getAllText() {
         StringBuilder sb = new StringBuilder();
-        for (int i = start.y; i <= end.y && i < this.lines.size(); i++) {
-            String line = this.lines.get(i);
-            if (i == start.y) {
-                sb.append(line.substring(Math.min(start.x, line.length())));
-            } else if (i == end.y) {
-                sb.append("\n")
-                    .append(line.substring(0, Math.min(end.x, line.length())));
-            } else {
-                sb.append("\n")
-                    .append(line);
-            }
+        for (int i = 0; i < this.lines.size(); i++) {
+            if (i > 0) sb.append("\n");
+            sb.append(this.lines.get(i));
         }
         return sb.toString();
     }
@@ -405,8 +248,7 @@ public class SelectableTextWidget extends Widget<SelectableTextWidget> implement
 
     @Override
     public void onRemoveFocus(ModularGuiContext context) {
-        hasSelection = false;
-        isDragging = false;
+        selectAll = false;
     }
 
     @Override

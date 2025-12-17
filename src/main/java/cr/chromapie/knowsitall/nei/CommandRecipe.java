@@ -10,10 +10,8 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 
 import cpw.mods.fml.common.Loader;
-import cr.chromapie.knowsitall.ModConfig;
-import cr.chromapie.knowsitall.api.OpenAIClient;
+import cr.chromapie.knowsitall.knowledge.KnowledgeBase;
 import cr.chromapie.knowsitall.util.ChatFormatter;
-import cr.chromapie.knowsitall.util.ServerScheduler;
 
 public class CommandRecipe extends CommandBase {
 
@@ -24,7 +22,7 @@ public class CommandRecipe extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/knowsrecipe <analyze|list|clear> [args]";
+        return "/knowsrecipe <analyze|list|clear>";
     }
 
     @Override
@@ -71,12 +69,11 @@ public class CommandRecipe extends CommandBase {
     }
 
     private void handleAnalyze(ICommandSender sender, String[] args) {
-        if (!(sender instanceof EntityPlayer)) {
+        if (!(sender instanceof EntityPlayer player)) {
             ChatFormatter.error(sender, "Requires player.");
             return;
         }
 
-        EntityPlayer player = (EntityPlayer) sender;
         ItemStack held = player.getHeldItem();
 
         if (held == null) {
@@ -107,23 +104,6 @@ public class CommandRecipe extends CommandBase {
             .split("\n")) {
             ChatFormatter.sendRaw(sender, line);
         }
-
-        if (ModConfig.isConfigured() && args.length > 1 && args[args.length - 1].equalsIgnoreCase("ai")) {
-            String question = "Based on this recipe analysis, summarize what materials I need and suggest an efficient crafting order.";
-            ChatFormatter.thinking(sender);
-
-            OpenAIClient.chat(player.getUniqueID(), question, result.toAIText(), response -> {
-                ServerScheduler.schedule(() -> {
-                    ChatFormatter.clearActionBar(sender);
-                    ChatFormatter.aiResponse(sender, response);
-                });
-            }, error -> {
-                ServerScheduler.schedule(() -> {
-                    ChatFormatter.clearActionBar(sender);
-                    ChatFormatter.error(sender, error);
-                });
-            });
-        }
     }
 
     private void handleList(ICommandSender sender) {
@@ -139,13 +119,14 @@ public class CommandRecipe extends CommandBase {
     }
 
     private void handleClear(ICommandSender sender) {
-        ChatFormatter.warning(sender, "Recipe knowledge cleared.");
+        int count = RecipeKnowledge.size();
+        KnowledgeBase.clearByType("recipe");
+        ChatFormatter.success(sender, "Cleared " + count + " recipe entries.");
     }
 
     private void showHelp(ICommandSender sender) {
         ChatFormatter.header(sender, "Recipe Commands");
         ChatFormatter.commandHelp(sender, "/knowsrecipe analyze [depth]", "Analyze held item's recipe tree");
-        ChatFormatter.commandHelp(sender, "/knowsrecipe analyze [depth] ai", "Analyze + AI summary");
         ChatFormatter.commandHelp(sender, "/knowsrecipe list", "Show recipe knowledge stats");
         ChatFormatter.info(sender, "Mark recipes in NEI using the §a[K]§7 button.");
     }

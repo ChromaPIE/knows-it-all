@@ -16,22 +16,7 @@ import cr.chromapie.knowsitall.util.WorldDataReader;
 
 public class ContextCollector {
 
-    public static class BlockContext {
-
-        public final int x, y, z;
-        public final String blockId;
-        public final String displayName;
-        public final String data;
-
-        public BlockContext(int x, int y, int z, String blockId, String displayName, String data) {
-            this.x = x;
-            this.y = y;
-            this.z = z;
-            this.blockId = blockId;
-            this.displayName = displayName;
-            this.data = data;
-        }
-    }
+    public record BlockContext(int x, int y, int z, String blockId, String displayName, String data) {}
 
     public static BlockContext getLookingAt(EntityPlayerMP player, double maxDistance) {
         Vec3 eyePos = Vec3.createVectorHelper(player.posX, player.posY + player.getEyeHeight(), player.posZ);
@@ -88,31 +73,6 @@ public class ContextCollector {
         }
 
         return containers;
-    }
-
-    public static List<BlockContext> getTileEntitiesInRange(EntityPlayerMP player, int range) {
-        List<BlockContext> tiles = new ArrayList<>();
-        World world = player.worldObj;
-
-        int px = (int) Math.floor(player.posX);
-        int py = (int) Math.floor(player.posY);
-        int pz = (int) Math.floor(player.posZ);
-
-        for (int x = px - range; x <= px + range; x++) {
-            for (int y = py - range; y <= py + range; y++) {
-                for (int z = pz - range; z <= pz + range; z++) {
-                    TileEntity te = world.getTileEntity(x, y, z);
-                    if (te != null) {
-                        BlockContext ctx = getBlockContext(world, x, y, z);
-                        if (ctx != null) {
-                            tiles.add(ctx);
-                        }
-                    }
-                }
-            }
-        }
-
-        return tiles;
     }
 
     public static String getPlayerInventory(EntityPlayerMP player) {
